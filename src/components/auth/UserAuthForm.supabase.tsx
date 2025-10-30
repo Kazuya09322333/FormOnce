@@ -109,7 +109,7 @@ export function UserAuthFormSupabase({
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'github',
         options: {
-          redirectTo: `${window.location.origin}/api/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
@@ -129,7 +129,7 @@ export function UserAuthFormSupabase({
 
   const handleGoogleSignIn = async () => {
     setisGoogleLoading(true)
-    const redirectUrl = `${window.location.origin}/api/auth/callback`
+    const redirectUrl = `${window.location.origin}/auth/callback`
     console.log('[Google OAuth] Starting sign in with redirect:', redirectUrl)
 
     try {
