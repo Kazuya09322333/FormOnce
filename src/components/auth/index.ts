@@ -1,1 +1,1 @@
-export * from './UserAuthForm'
+export * from './UserAuthForm.supabase'
