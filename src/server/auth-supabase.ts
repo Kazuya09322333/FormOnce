@@ -15,7 +15,16 @@ export const getServerAuthSessionSupabase = async (
 
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser()
+
+  // デバッグログ
+  console.log('[Auth Debug] Cookie:', ctx.req.headers.cookie?.substring(0, 100))
+  console.log(
+    '[Auth Debug] User:',
+    user ? `${user.id} (${user.email})` : 'null',
+  )
+  console.log('[Auth Debug] Error:', error)
 
   if (!user) {
     return null
