@@ -7,13 +7,12 @@
  * need to use are documented accordingly near the end.
  */
 
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 import { TRPCError, initTRPC } from '@trpc/server'
 import { type CreateNextContextOptions } from '@trpc/server/adapters/next'
 import type { NextApiRequest } from 'next'
-import { type Session } from 'next-auth'
 import superjson from 'superjson'
 import { ZodError } from 'zod'
-import { getServerAuthSession } from '~/server/auth'
 import { prisma } from '~/server/db'
 
 /**
@@ -24,8 +23,18 @@ import { prisma } from '~/server/db'
  * These allow you to access things when processing a request, like the database, the session, etc.
  */
 
+// Supabase session type for tRPC context
+interface SupabaseSession {
+  user: {
+    id: string
+    email: string | undefined
+    name: string | undefined
+    workspaceId?: string
+  }
+}
+
 interface CreateContextOptions {
-  session: Session | null
+  session: SupabaseSession | null
   req: NextApiRequest
 }
 
@@ -56,8 +65,28 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
 export const createTRPCContext = async (opts: CreateNextContextOptions) => {
   const { req, res } = opts
 
-  // Get the session from the server using the getServerSession wrapper function
-  const session = await getServerAuthSession({ req, res })
+  // Get the session from Supabase Auth
+  const supabase = createPagesServerClient({ req, res })
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  let session: SupabaseSession | null = null
+
+  if (user) {
+    session = {
+      user: {
+        id: user.id,
+        email: user.email,
+        name:
+          user.user_metadata?.name ||
+          user.user_metadata?.full_name ||
+          user.email,
+        // workspaceId can be added later if needed
+      },
+    }
+  }
 
   return createInnerTRPCContext({
     session,

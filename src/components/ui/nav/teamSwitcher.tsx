@@ -38,9 +38,9 @@ import {
   SelectValue,
 } from '@components/ui/select'
 import type { Workspace } from '@prisma/client'
+import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react'
 import { api } from '@utils/api'
 import { cn } from '@utils/cn'
-import { useSession } from 'next-auth/react'
 import { useWorkspaceStore } from '~/store'
 import { Icons } from '../icons'
 
@@ -85,7 +85,8 @@ interface TeamSwitcherProps extends PopoverTriggerProps {
 }
 
 export function TeamSwitcher({ className }: TeamSwitcherProps) {
-  const { update: updateSession, data: session } = useSession()
+  const user = useUser()
+  const supabase = useSupabaseClient()
 
   const { data: workspaces, refetch: refetchWorkspaces } =
     api.workspace.getAll.useQuery(undefined, {
@@ -106,11 +107,12 @@ export function TeamSwitcher({ className }: TeamSwitcherProps) {
   const groups = React.useMemo(() => getGroups(workspaces), [workspaces])
 
   React.useEffect(() => {
-    const sessionHasWorkspace = session?.user.workspaceId
+    // Get workspaceId from user metadata if it exists
+    const userWorkspaceId = user?.user_metadata?.workspaceId
 
-    if (sessionHasWorkspace) {
+    if (userWorkspaceId) {
       const workspace = workspaces?.find(
-        (workspace) => workspace.id === session.user.workspaceId,
+        (workspace) => workspace.id === userWorkspaceId,
       )
       setSelectedWorkspace({
         name: workspace?.isPersonal ? 'Personal' : workspace?.name ?? '',
@@ -118,17 +120,23 @@ export function TeamSwitcher({ className }: TeamSwitcherProps) {
       })
     } else {
       const defaultWorkspace = groups[0]?.teams[0]!
-      if (defaultWorkspace) handleUpdateWorkspace(defaultWorkspace)
+      if (defaultWorkspace) void handleUpdateWorkspace(defaultWorkspace)
     }
-  }, [groups])
+  }, [groups, user])
 
   const handleUpdateWorkspace = async (team: Team) => {
     setSelectedWorkspace(team)
     setOpen(false)
-    // update workspaceId in session
-    await updateSession({
-      workspaceId: team.id,
-    })
+
+    // Update workspaceId in user metadata
+    if (user) {
+      await supabase.auth.updateUser({
+        data: {
+          workspaceId: team.id,
+        },
+      })
+    }
+
     // refresh
     window.location.reload()
   }

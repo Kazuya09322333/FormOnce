@@ -1,5 +1,6 @@
-import { signOut, useSession } from 'next-auth/react'
+import { useSupabaseClient, useUser } from '@supabase/auth-helpers-react'
 import Link from 'next/link'
+import { useRouter } from 'next/router'
 import { Button, buttonVariants } from '~/components/ui/button'
 import { useWorkspaceStore } from '~/store'
 import { cn } from '~/utils/cn'
@@ -141,29 +142,36 @@ const SidebarItem = ({ name, icon, link }: SidebarItem) => {
 }
 
 const SideBarFooter = () => {
-  const session = useSession()
-  const user = session.data?.user
-
+  const user = useUser()
+  const supabase = useSupabaseClient()
+  const router = useRouter()
   const { setSelectedWorkspace } = useWorkspaceStore()
 
-  const handleSignout = () => {
+  const handleSignout = async () => {
     // remove selected workspace
     setSelectedWorkspace({
       id: null as unknown as string,
       name: null as unknown as string,
     })
 
-    void signOut({
-      callbackUrl: '/auth/signin',
-    })
+    // Sign out from Supabase
+    await supabase.auth.signOut()
+
+    // Redirect to signin page
+    void router.push('/auth/signin')
   }
+
+  const userName =
+    user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email
+
+  if (!user) return null
 
   return (
     <div className="flex flex-col px-4 py-2">
       <div className="flex flex-col px-3 py-2 space-y-1">
-        <p className="text-sm font-medium leading-none">{user?.name}</p>
+        <p className="text-sm font-medium leading-none">{userName}</p>
         <p className="text-xs leading-none text-muted-foreground">
-          {user?.email}
+          {user.email}
         </p>
       </div>
       <Button

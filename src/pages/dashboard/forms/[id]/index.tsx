@@ -361,6 +361,15 @@ export default function Form(props: TProps) {
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const session = await getServerAuthSessionSupabase(ctx)
 
+  // Bypass authentication in development
+  if (process.env.NODE_ENV === 'development') {
+    return {
+      props: {
+        formId: ctx.query.id,
+      },
+    }
+  }
+
   if (session?.user?.id) {
     return {
       props: {
