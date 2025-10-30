@@ -21,7 +21,7 @@ import { ShareDialog } from '~/components/form-builder/share-dialog'
 import OverViewChart from '~/components/responses/overview-chart'
 import ResponsesTable from '~/components/responses/responses-table'
 import DashboardLayout from '~/layouts/dashboardLayout'
-import { getServerAuthSession } from '~/server/auth'
+import { getServerAuthSessionSupabase } from '~/server/auth-supabase'
 import { api } from '~/utils/api'
 import calculatePercentageDelta from '~/utils/responses/calculatePercentageDelta'
 
@@ -308,7 +308,7 @@ export default function Summary(props: TProps) {
 }
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const session = await getServerAuthSession(ctx)
+  const session = await getServerAuthSessionSupabase(ctx)
 
   if (session?.user?.id) {
     return {

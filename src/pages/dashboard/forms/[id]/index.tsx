@@ -10,7 +10,7 @@ import { BasicBuilder } from '~/components/form-builder/basic-builder'
 import { FlowBuilder } from '~/components/form-builder/flow-builder'
 import { ShareDialog } from '~/components/form-builder/share-dialog'
 import BuilderLayout from '~/layouts/builderLayout'
-import { getServerAuthSession } from '~/server/auth'
+import { getServerAuthSessionSupabase } from '~/server/auth-supabase'
 import { type TQuestion } from '~/types/question.types'
 import { api } from '~/utils/api'
 
@@ -359,7 +359,7 @@ export default function Form(props: TProps) {
 }
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const session = await getServerAuthSession(ctx)
+  const session = await getServerAuthSessionSupabase(ctx)
 
   if (session?.user?.id) {
     return {
