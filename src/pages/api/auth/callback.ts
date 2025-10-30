@@ -22,17 +22,7 @@ export default async function handler(
 
   if (code && typeof code === 'string') {
     console.log('[OAuth Callback] Exchanging code for session...')
-    const supabase = createPagesServerClient({
-      req,
-      res,
-      options: {
-        cookieOptions: {
-          domain: '.vercel.app',
-          sameSite: 'lax',
-          secure: true,
-        },
-      },
-    })
+    const supabase = createPagesServerClient({ req, res })
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     console.log('[OAuth Callback] Exchange result:', {
