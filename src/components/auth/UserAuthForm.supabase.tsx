@@ -129,23 +129,31 @@ export function UserAuthFormSupabase({
 
   const handleGoogleSignIn = async () => {
     setisGoogleLoading(true)
+    const redirectUrl = `${window.location.origin}/api/auth/callback`
+    console.log('[Google OAuth] Starting sign in with redirect:', redirectUrl)
+
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/api/auth/callback`,
+          redirectTo: redirectUrl,
         },
       })
 
+      console.log('[Google OAuth] Response:', { data, error })
+
       if (error) {
+        console.error('[Google OAuth] Error:', error)
         toast.error(error.message, {
           position: 'top-center',
           duration: 3000,
           closeButton: true,
         })
+      } else {
+        console.log('[Google OAuth] Success, should redirect to:', data.url)
       }
     } catch (error) {
-      console.error('Google sign in error:', error)
+      console.error('[Google OAuth] Exception:', error)
     } finally {
       setisGoogleLoading(false)
     }
