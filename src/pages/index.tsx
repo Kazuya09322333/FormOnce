@@ -1,14 +1,15 @@
 import { GitHubLogoIcon, TwitterLogoIcon } from '@radix-ui/react-icons'
 import { ArrowRightIcon, ChevronRight, CopyrightIcon } from 'lucide-react'
 import type { GetServerSideProps } from 'next'
-// import { signOut } from 'next-auth/react'
 import Head from 'next/head'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import { Input } from '~/components/ui'
+import { Input, buttonVariants } from '~/components/ui'
 import { Button } from '~/components/ui/button'
-import { getServerAuthSession } from '~/server/auth'
+import { supabase } from '~/lib/supabase'
+import { getServerAuthSessionSupabase } from '~/server/auth-supabase'
+import { cn } from '~/utils/cn'
 
 import { FormEvent, FormEventHandler, useState } from 'react'
 import { toast } from 'sonner'
@@ -17,21 +18,19 @@ import { api } from '~/utils/api'
 import HeroImg from '../assets/hero.png'
 
 export default function Home({ id }: { id: string }) {
-  // const router = useRouter()
+  const router = useRouter()
 
-  // const [isSigningOut, setIsSigningOut] = useState(false)
-  // const handleSignout = () => {
-  //   setIsSigningOut(true)
-  //   void signOut({
-  //     callbackUrl: '/auth/signin',
-  //   }).then(() => {
-  //     setIsSigningOut(false)
-  //   })
-  // }
+  const [isSigningOut, setIsSigningOut] = useState(false)
+  const handleSignout = async () => {
+    setIsSigningOut(true)
+    await supabase.auth.signOut()
+    void router.push('/auth/signin')
+    setIsSigningOut(false)
+  }
 
-  // const handleRedirectToDashboard = () => {
-  //   void router.push('/dashboard/forms')
-  // }
+  const handleRedirectToDashboard = () => {
+    void router.push('/dashboard/forms')
+  }
 
   const [email, setEmail] = useState('')
   const joinWaitlist = api.waitlist.join.useMutation()
@@ -66,31 +65,30 @@ export default function Home({ id }: { id: string }) {
               FormOnce
             </span>
           </Link>
-          {/* {id ? (
-            <div className="flex">
-              <Button onClick={handleRedirectToDashboard} variant="ghost">
-                Dashboard
-              </Button>
-              <Button onClick={handleSignout} variant="ghost">
-                {isSigningOut && (
-                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Sign out
-              </Button>
-            </div>
-          ) : (
-            <Link
-              href="/auth/signin"
-              className={cn(buttonVariants({ variant: 'ghost' }))}
-            >
-              <span className="text-foreground">Sign in</span>
-            </Link>
-          )} */}
-          <Button variant={'link'}>
-            <Link href="https://github.com/FormOnce/FormOnce">
-              <GitHubLogoIcon width={'28'} height={'28'} />
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            {id ? (
+              <div className="flex">
+                <Button onClick={handleRedirectToDashboard} variant="ghost">
+                  Dashboard
+                </Button>
+                <Button onClick={handleSignout} variant="ghost">
+                  Sign out
+                </Button>
+              </div>
+            ) : (
+              <Link
+                href="/auth/signin"
+                className={cn(buttonVariants({ variant: 'ghost' }))}
+              >
+                <span className="text-foreground">Sign in</span>
+              </Link>
+            )}
+            <Button variant={'link'}>
+              <Link href="https://github.com/FormOnce/FormOnce">
+                <GitHubLogoIcon width={'28'} height={'28'} />
+              </Link>
+            </Button>
+          </div>
         </nav>
         <div className="flex flex-col items-center justify-center bg-background">
           <div className="container flex flex-col items-center gap-16 px-4 py-16 max-w-5xl">
@@ -209,7 +207,7 @@ export default function Home({ id }: { id: string }) {
 }
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const session = await getServerAuthSession(ctx)
+  const session = await getServerAuthSessionSupabase(ctx)
 
   if (session?.user?.id) {
     return {
