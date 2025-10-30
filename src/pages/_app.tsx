@@ -1,13 +1,13 @@
 import { type AppType } from 'next/app'
 import { api } from '~/utils/api'
 import '~/styles/globals.css'
-import { createBrowserSupabaseClient } from '@supabase/auth-helpers-nextjs'
+import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs'
 import { SessionContextProvider } from '@supabase/auth-helpers-react'
 import { useEffect, useState } from 'react'
 
 const MyApp: AppType = ({ Component, pageProps }) => {
   const [isHyderated, setIsHyderated] = useState(false)
-  const [supabaseClient] = useState(() => createBrowserSupabaseClient())
+  const [supabaseClient] = useState(() => createPagesBrowserClient())
 
   // Wait till Next.js rehydration completes
   useEffect(() => {
