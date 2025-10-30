@@ -43,3 +43,6 @@ yarn-error.log*
 
 # Turborepo
 .turbo
+
+# Claude MCP configuration (contains API keys)
+.claude/mcp.json
