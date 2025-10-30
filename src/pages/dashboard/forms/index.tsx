@@ -14,11 +14,11 @@ import {
 } from '@components/ui'
 import { type Form, FormStatus } from '@prisma/client'
 import type { GetServerSideProps } from 'next'
-import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/router'
 import { useState } from 'react'
+import { useAuth } from '~/hooks/useAuth'
 import DashboardLayout from '~/layouts/dashboardLayout'
-import { getServerAuthSession } from '~/server/auth'
+import { getServerAuthSessionSupabase } from '~/server/auth-supabase'
 import { api } from '~/utils/api'
 
 export default function Forms() {
@@ -46,14 +46,14 @@ export default function Forms() {
 
 export function AllFormsTable() {
   const router = useRouter()
-  const session = useSession()
+  const { user } = useAuth()
 
   const {
     data: forms,
     isLoading,
     refetch,
   } = api.form.getAll.useQuery({
-    workspaceId: session.data?.user.workspaceId,
+    workspaceId: user?.id, // TODO: get workspaceId from Supabase user metadata
   })
   const {
     mutateAsync: deleteForm,
@@ -190,7 +190,7 @@ export function AllFormsTable() {
 }
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const session = await getServerAuthSession(ctx)
+  const session = await getServerAuthSessionSupabase(ctx)
 
   if (!session?.user?.id) {
     return {

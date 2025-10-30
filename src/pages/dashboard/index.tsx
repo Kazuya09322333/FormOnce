@@ -2,7 +2,7 @@ import { Loader } from 'lucide-react'
 import type { GetServerSideProps } from 'next'
 import { useRouter } from 'next/router'
 import DashboardLayout from '~/layouts/dashboardLayout'
-import { getServerAuthSession } from '~/server/auth'
+import { getServerAuthSessionSupabase } from '~/server/auth-supabase'
 
 export default function Forms() {
   const router = useRouter()
@@ -19,7 +19,7 @@ export default function Forms() {
 }
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const session = await getServerAuthSession(ctx)
+  const session = await getServerAuthSessionSupabase(ctx)
 
   if (!session?.user?.id) {
     return {
