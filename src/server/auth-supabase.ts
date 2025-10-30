@@ -2,7 +2,7 @@
  * Supabase Auth用のサーバーサイド認証ヘルパー
  */
 
-import { createClient } from '@supabase/supabase-js'
+import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 import type { GetServerSidePropsContext } from 'next'
 
 /**
@@ -11,16 +11,7 @@ import type { GetServerSidePropsContext } from 'next'
 export const getServerAuthSessionSupabase = async (
   ctx: GetServerSidePropsContext,
 ) => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: {
-        cookie: ctx.req.headers.cookie || '',
-      },
-    },
-  })
+  const supabase = createPagesServerClient(ctx)
 
   const {
     data: { user },
