@@ -25,6 +25,8 @@ export default function Forms() {
   const router = useRouter()
 
   const onCreateNewForm = () => {
+    // Use the original form builder with id="new"
+    // This will be handled by [id]/index.tsx
     void router.push('/dashboard/forms/new')
   }
 
