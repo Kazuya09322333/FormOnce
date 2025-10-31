@@ -22,10 +22,10 @@ type SidebarGroup = {
 
 const sidebarGroups: SidebarGroup[] = [
   {
-    name: 'Dashboard',
+    name: 'ダッシュボード',
     items: [
       {
-        name: 'All Forms',
+        name: 'すべてのフォーム',
         link: '/dashboard/forms',
         icon: (
           <svg
@@ -43,7 +43,7 @@ const sidebarGroups: SidebarGroup[] = [
         ),
       },
       {
-        name: 'Templates',
+        name: 'テンプレート',
         link: '/dashboard/templates',
         icon: (
           <svg
@@ -65,10 +65,10 @@ const sidebarGroups: SidebarGroup[] = [
     ],
   },
   {
-    name: 'Settings',
+    name: '設定',
     items: [
       {
-        name: 'Keys',
+        name: 'APIキー',
         link: '/settings/api-keys',
         icon: (
           <svg
@@ -88,7 +88,7 @@ const sidebarGroups: SidebarGroup[] = [
         ),
       },
       {
-        name: 'Webhooks',
+        name: 'Webhook',
         link: '/settings/webhooks',
         icon: (
           <svg
@@ -180,7 +180,7 @@ const SideBarFooter = () => {
         className="justify-start"
         onClick={handleSignout}
       >
-        Sign out
+        ログアウト
       </Button>
     </div>
   )
