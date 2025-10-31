@@ -40,6 +40,12 @@ export const api = createTRPCNext<AppRouter>({
         }),
         httpBatchLink({
           url: `${getBaseUrl()}/api/trpc`,
+          headers() {
+            return {
+              // This ensures cookies are sent with the request
+              cookie: typeof window !== 'undefined' ? document.cookie : '',
+            }
+          },
         }),
       ],
     }
