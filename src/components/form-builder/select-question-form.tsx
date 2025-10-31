@@ -95,14 +95,14 @@ const SelectQuestionForm = (props: TSelectQuestionForm) => {
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Title</FormLabel>
+              <FormLabel>タイトル</FormLabel>
               <FormDescription>
-                Title that will be shown to the user.
+                ユーザーに表示される質問のタイトル
               </FormDescription>
               <FormControl>
                 <Input
                   type="text"
-                  placeholder="Enter question title"
+                  placeholder="質問のタイトルを入力"
                   {...field}
                 />
               </FormControl>
@@ -115,16 +115,12 @@ const SelectQuestionForm = (props: TSelectQuestionForm) => {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>説明</FormLabel>
               <FormDescription>
-                A description that will be shown to the user just like this one
+                ユーザーに表示される質問の説明文
               </FormDescription>
               <FormControl>
-                <Input
-                  type="text"
-                  placeholder="Enter question description"
-                  {...field}
-                />
+                <Input type="text" placeholder="質問の説明を入力" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -135,10 +131,16 @@ const SelectQuestionForm = (props: TSelectQuestionForm) => {
           name="placeholder"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Placeholder</FormLabel>
-              <FormDescription>Placeholder for this question</FormDescription>
+              <FormLabel>プレースホルダー</FormLabel>
+              <FormDescription>
+                入力欄に表示されるヒントテキスト
+              </FormDescription>
               <FormControl>
-                <Input type="text" placeholder="Hold my place" {...field} />
+                <Input
+                  type="text"
+                  placeholder="例: 選択してください"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -150,7 +152,7 @@ const SelectQuestionForm = (props: TSelectQuestionForm) => {
           render={({ field }) => (
             <FormItem>
               <div className="flex gap-3">
-                <FormLabel>Allow multiple</FormLabel>
+                <FormLabel>複数選択を許可</FormLabel>
                 <FormControl>
                   <Switch
                     checked={field.value === ESelectSubType.Multiple}
@@ -163,14 +165,14 @@ const SelectQuestionForm = (props: TSelectQuestionForm) => {
                 </FormControl>
               </div>
               <FormDescription>
-                Allow the user to select multiple options
+                ユーザーが複数の選択肢を選べるようにします
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
         <div className="flex flex-col gap-2">
-          <h3 className="text-lg font-semibold">Options</h3>
+          <h3 className="text-lg font-semibold">選択肢</h3>
           {fields.map((field, index) => (
             <FormField
               key={field.id}
@@ -182,7 +184,7 @@ const SelectQuestionForm = (props: TSelectQuestionForm) => {
                     <FormControl>
                       <Input
                         type="text"
-                        placeholder="Enter option"
+                        placeholder="選択肢を入力"
                         {...field}
                       />
                     </FormControl>
@@ -204,21 +206,21 @@ const SelectQuestionForm = (props: TSelectQuestionForm) => {
             type="button"
             size="icon"
             variant="ghost"
-            onClick={() => append('Option')}
+            onClick={() => append('選択肢')}
             className="text-muted-foreground hover:bg-primary/90 hover:text-primary-foreground"
           >
             <Icons.plus className="h-5 w-5" />
           </Button>
         </div>
         {props.mode === 'add' ? (
-          <Button type="submit">Add Question</Button>
+          <Button type="submit">質問を追加</Button>
         ) : (
           <Button
             type="submit"
             disabled={!form.formState.isDirty}
             loading={isLoading}
           >
-            Edit Question
+            質問を編集
           </Button>
         )}
       </form>

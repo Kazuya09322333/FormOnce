@@ -57,7 +57,7 @@ export const BasicBuilder = ({
           <div className="mb-28 flex flex-col gap-2">
             <div className="flex">
               <LockClosedIcon className="mr-2 h-6 w-6" />
-              <p className="text-xl">Published forms can&apos;t be edited.</p>
+              <p className="text-xl">公開中のフォームは編集できません</p>
             </div>
             <div className="flex justify-center">
               <Button
@@ -71,7 +71,7 @@ export const BasicBuilder = ({
                 }
                 loading={isUnpublishingForm}
               >
-                Unpublish
+                非公開にする
               </Button>
             </div>
           </div>

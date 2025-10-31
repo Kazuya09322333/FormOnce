@@ -89,14 +89,14 @@ const TextQuestionForm = (props: TTextQuestionProps) => {
           name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Title</FormLabel>
+              <FormLabel>タイトル</FormLabel>
               <FormDescription>
-                Title that will be shown to the user.
+                ユーザーに表示される質問のタイトル
               </FormDescription>
               <FormControl>
                 <Input
                   type="text"
-                  placeholder="Enter question title"
+                  placeholder="質問のタイトルを入力"
                   {...field}
                 />
               </FormControl>
@@ -109,16 +109,12 @@ const TextQuestionForm = (props: TTextQuestionProps) => {
           name="description"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Description</FormLabel>
+              <FormLabel>説明</FormLabel>
               <FormDescription>
-                A description that will be shown to the user just like this one
+                ユーザーに表示される質問の説明文
               </FormDescription>
               <FormControl>
-                <Input
-                  type="text"
-                  placeholder="Enter question description"
-                  {...field}
-                />
+                <Input type="text" placeholder="質問の説明を入力" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -129,10 +125,16 @@ const TextQuestionForm = (props: TTextQuestionProps) => {
           name="placeholder"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Placeholder</FormLabel>
-              <FormDescription>Placeholder for this question</FormDescription>
+              <FormLabel>プレースホルダー</FormLabel>
+              <FormDescription>
+                入力欄に表示されるヒントテキスト
+              </FormDescription>
               <FormControl>
-                <Input type="text" placeholder="Hold my place" {...field} />
+                <Input
+                  type="text"
+                  placeholder="例: お名前を入力してください"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -143,7 +145,7 @@ const TextQuestionForm = (props: TTextQuestionProps) => {
           name="subType"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Input type</FormLabel>
+              <FormLabel>入力タイプ</FormLabel>
               <FormControl>
                 <RadioGroup
                   onValueChange={field.onChange}
@@ -175,7 +177,7 @@ const TextQuestionForm = (props: TTextQuestionProps) => {
         />
         {props.mode === 'add' ? (
           <Button type="submit" loading={isLoading}>
-            Add Question
+            質問を追加
           </Button>
         ) : (
           <Button
@@ -183,7 +185,7 @@ const TextQuestionForm = (props: TTextQuestionProps) => {
             disabled={!form.formState.isDirty}
             loading={isLoading}
           >
-            Edit Question
+            質問を編集
           </Button>
         )}
       </form>

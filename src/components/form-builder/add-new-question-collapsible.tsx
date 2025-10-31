@@ -69,7 +69,7 @@ const AddNewQuestionCollapsible = (props: TAddNewQuestionProps) => {
           <Icons.plus
             className={`mr-2 h-6 w-6 transition ${isOpen && 'rotate-90'}`}
           />
-          <span className="text">Add new question</span>
+          <span className="text">新しい質問を追加</span>
         </div>
         {isOpen && (
           <div className="w-36 items-center">
