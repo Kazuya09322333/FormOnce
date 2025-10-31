@@ -75,6 +75,25 @@ export const createTRPCContext = async (opts: CreateNextContextOptions) => {
   let session: SupabaseSession | null = null
 
   if (user) {
+    // Get user's default workspace from database
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: {
+        WorkspaceMember: {
+          select: {
+            Workspace: {
+              select: {
+                id: true,
+              },
+            },
+          },
+          take: 1,
+        },
+      },
+    })
+
+    const defaultWorkspaceId = dbUser?.WorkspaceMember[0]?.Workspace.id
+
     session = {
       user: {
         id: user.id,
@@ -83,7 +102,7 @@ export const createTRPCContext = async (opts: CreateNextContextOptions) => {
           user.user_metadata?.name ||
           user.user_metadata?.full_name ||
           user.email,
-        // workspaceId can be added later if needed
+        workspaceId: defaultWorkspaceId,
       },
     }
   }

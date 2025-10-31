@@ -187,8 +187,8 @@ export const formRouter = createTRPCRouter({
 
         return await ctx.prisma.form.create({
           data: {
-            workspaceId: ctx.session?.user?.workspaceId,
-            authorId: ctx.session?.user?.id,
+            workspaceId: ctx.session.user.workspaceId!,
+            authorId: ctx.session.user.id,
             name: input.name,
             formSchema: formSchema as unknown as string,
             questions: questions,

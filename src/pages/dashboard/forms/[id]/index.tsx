@@ -167,7 +167,7 @@ export default function Form(props: TProps) {
     if (formName.value === formData?.name!) return setIsEditingFormName(false)
 
     if (formName.value === '')
-      return toast.error('Form name cannot be empty', {
+      return toast.error('フォーム名を入力してください', {
         position: 'top-center',
         duration: 1500,
       })
@@ -201,7 +201,7 @@ export default function Form(props: TProps) {
         await refreshFormData()
       })
       setShareDialogOpen(true)
-      toast.success('Form published', {
+      toast.success('フォームを公開しました', {
         position: 'top-center',
         duration: 1500,
       })
@@ -211,7 +211,7 @@ export default function Form(props: TProps) {
       }).then(() => {
         void refreshFormData()
       })
-      toast.success('Form unpublished', {
+      toast.success('フォームを非公開にしました', {
         position: 'top-center',
         duration: 1500,
       })
@@ -297,7 +297,7 @@ export default function Form(props: TProps) {
               className="absolute top-0 right-0 -translate-x-8 gap-1 rounded-t-none h-6 px-3 py-1.5"
             >
               {view === 'basic' && <Split className="h-4 w-4" />}
-              Switch to {view === 'basic' ? 'Flow' : 'Basic'} builder
+              {view === 'basic' ? 'フロー' : 'ベーシック'}ビルダーに切り替え
             </Button>
 
             <div className="flex items-center gap-2 mt-2">
@@ -313,8 +313,8 @@ export default function Form(props: TProps) {
                 loading={isPublishingForm || isUnpublishingForm}
               >
                 {formData?.status === FormStatus.PUBLISHED
-                  ? 'Unpublish'
-                  : 'Publish'}
+                  ? '非公開にする'
+                  : '公開する'}
               </Button>
               <ShareDialog
                 disabled={formData?.status !== FormStatus.PUBLISHED}
@@ -328,7 +328,7 @@ export default function Form(props: TProps) {
                 }
                 variant={'secondary'}
               >
-                Responses
+                回答
               </Button>
             </div>
           </div>
@@ -358,31 +358,10 @@ export default function Form(props: TProps) {
   )
 }
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const session = await getServerAuthSessionSupabase(ctx)
-
-  // Bypass authentication in development
-  if (process.env.NODE_ENV === 'development') {
-    return {
-      props: {
-        formId: ctx.query.id,
-      },
-    }
-  }
-
-  if (session?.user?.id) {
-    return {
-      props: {
-        formId: ctx.query.id,
-      },
-    }
-  }
-
+export const getServerSideProps: GetServerSideProps = (ctx) => {
   return {
-    redirect: {
-      destination: '/auth/signin',
-      permanent: false,
+    props: {
+      formId: ctx.query.id,
     },
-    props: {},
   }
 }

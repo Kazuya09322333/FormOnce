@@ -3,9 +3,13 @@ import { api } from '~/utils/api'
 import '~/styles/globals.css'
 import { createPagesBrowserClient } from '@supabase/auth-helpers-nextjs'
 import { SessionContextProvider } from '@supabase/auth-helpers-react'
+import type { Session } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 
-const MyApp: AppType = ({ Component, pageProps }) => {
+const MyApp: AppType<{ initialSession?: Session }> = ({
+  Component,
+  pageProps,
+}) => {
   const [isHyderated, setIsHyderated] = useState(false)
   const [supabaseClient] = useState(() => createPagesBrowserClient())
 

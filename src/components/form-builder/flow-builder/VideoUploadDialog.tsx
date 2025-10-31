@@ -13,6 +13,15 @@ import { toast } from 'sonner'
 import { supabase } from '~/lib/supabase'
 import { api } from '~/utils/api'
 
+// Video upload constraints
+const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500MB in bytes
+const ALLOWED_VIDEO_TYPES = [
+  'video/mp4',
+  'video/quicktime', // .mov
+  'video/x-msvideo', // .avi
+  'video/webm',
+]
+
 export const VideoUploadDialog = ({
   isOpen,
   setIsOpen,
@@ -36,14 +45,41 @@ export const VideoUploadDialog = ({
   )
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event?.target?.files?.[0]) {
-      setVideoFile(event.target.files[0])
+    const file = event?.target?.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!ALLOWED_VIDEO_TYPES.includes(file.type)) {
+      toast.error(
+        '対応していないファイル形式です。MP4、MOV、AVI、WebMのみアップロード可能です。',
+        {
+          position: 'top-center',
+          duration: 3000,
+        },
+      )
+      event.target.value = '' // Reset input
+      return
     }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(
+        `ファイルサイズが大きすぎます。最大500MBまでアップロード可能です。`,
+        {
+          position: 'top-center',
+          duration: 3000,
+        },
+      )
+      event.target.value = '' // Reset input
+      return
+    }
+
+    setVideoFile(file)
   }
 
   const handleUpload = async () => {
     if (!videoFile) {
-      toast.error('Please select a video file')
+      toast.error('動画ファイルを選択してください')
       return
     }
 
@@ -55,6 +91,7 @@ export const VideoUploadDialog = ({
       const { uploadUrl, filePath, token } = await getUploadUrl({
         filename: videoFile.name,
         fileType: videoFile.type,
+        fileSize: videoFile.size,
       })
 
       // 2. Upload file directly to Supabase Storage using signed URL
@@ -78,7 +115,7 @@ export const VideoUploadDialog = ({
 
             setVideoId(result.videoId)
             setUploadProgress(100)
-            toast.success('Video uploaded successfully!')
+            toast.success('動画をアップロードしました！')
 
             // Callback with video info
             if (onVideoUploaded) {
@@ -92,12 +129,12 @@ export const VideoUploadDialog = ({
             }, 1500)
           } catch (error) {
             console.error('Error finalizing video:', error)
-            toast.error('Failed to finalize video upload')
+            toast.error('動画の処理に失敗しました')
             setIsUploading(false)
           }
         } else {
           console.error('Upload failed with status:', xhr.status)
-          toast.error('Upload failed. Please try again.')
+          toast.error('アップロードに失敗しました。もう一度お試しください。')
           setIsUploading(false)
           setUploadProgress(0)
         }
@@ -105,7 +142,7 @@ export const VideoUploadDialog = ({
 
       xhr.addEventListener('error', () => {
         console.error('Upload error')
-        toast.error('Upload failed. Please try again.')
+        toast.error('アップロードに失敗しました。もう一度お試しください。')
         setIsUploading(false)
         setUploadProgress(0)
       })
@@ -115,7 +152,7 @@ export const VideoUploadDialog = ({
       xhr.send(videoFile)
     } catch (error) {
       console.error('Upload failed:', error)
-      toast.error('Failed to start upload')
+      toast.error('アップロードを開始できませんでした')
       setIsUploading(false)
       setUploadProgress(0)
     }
@@ -141,32 +178,32 @@ export const VideoUploadDialog = ({
     <Dialog open={isOpen} onOpenChange={handleOnOpenChange}>
       <DialogContent>
         <div className="space-y-4 p-4">
-          <h2 className="text-xl font-semibold">Upload Video</h2>
+          <h2 className="text-xl font-semibold">動画をアップロード</h2>
 
           <div className="border-2 border-dashed border-gray-300 rounded-lg flex flex-col gap-2 p-8 items-center">
             <FileIcon className="w-12 h-12 text-gray-400" />
             <span className="text-sm font-medium text-gray-600">
-              Select a video file to upload
+              動画ファイルを選択してください
             </span>
             <span className="text-xs text-gray-500">
-              Supported formats: MP4, MOV, AVI, etc.
+              対応形式: MP4, MOV, AVI, WebM（最大500MB）
             </span>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="file" className="text-sm font-medium">
-              Video File
+              動画ファイル
             </Label>
             <Input
               id="file"
               type="file"
-              accept="video/mp4,video/quicktime,video/x-msvideo,video/*"
+              accept="video/mp4,video/quicktime,video/x-msvideo,video/webm,video/*"
               onChange={handleFileChange}
               disabled={isUploading}
             />
             {videoFile && (
               <p className="text-sm text-gray-600">
-                Selected: {videoFile.name} (
+                選択中: {videoFile.name} (
                 {(videoFile.size / 1024 / 1024).toFixed(2)} MB)
               </p>
             )}
@@ -181,7 +218,7 @@ export const VideoUploadDialog = ({
                 />
               </div>
               <p className="text-sm text-gray-600 text-center">
-                {uploadProgress}% uploaded
+                {uploadProgress}% アップロード中
               </p>
             </div>
           )}
@@ -189,7 +226,7 @@ export const VideoUploadDialog = ({
           {uploadProgress === 100 && videoStatus && (
             <div className="p-3 bg-green-50 border border-green-200 rounded-md">
               <p className="text-sm text-green-800 text-center">
-                ✓ Video uploaded successfully!
+                ✓ 動画をアップロードしました！
               </p>
             </div>
           )}
@@ -201,14 +238,14 @@ export const VideoUploadDialog = ({
             onClick={() => handleOnOpenChange(false)}
             disabled={isUploading}
           >
-            Cancel
+            キャンセル
           </Button>
           <Button
             onClick={handleUpload}
             disabled={!videoFile || isUploading}
             loading={isUploading}
           >
-            {isUploading ? 'Uploading...' : 'Upload'}
+            {isUploading ? 'アップロード中...' : 'アップロード'}
           </Button>
         </DialogFooter>
       </DialogContent>

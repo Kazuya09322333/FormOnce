@@ -7,6 +7,13 @@ import {
 } from '~/server/api/trpc'
 
 const VIDEOS_BUCKET = 'videos'
+const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500MB in bytes
+const ALLOWED_VIDEO_TYPES = [
+  'video/mp4',
+  'video/quicktime',
+  'video/x-msvideo',
+  'video/webm',
+]
 
 // Lazy initialization of Supabase client to avoid errors when env vars are not set
 let supabaseAdmin: ReturnType<typeof createClient> | null = null
@@ -39,11 +46,30 @@ export const videoRouter = createTRPCRouter({
       z.object({
         filename: z.string(),
         fileType: z.string(),
+        fileSize: z.number().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { filename, fileType } = input
+      const { filename, fileType, fileSize } = input
       const userId = ctx.session?.user?.id || 'anonymous'
+
+      // Validate file type
+      if (!ALLOWED_VIDEO_TYPES.includes(fileType)) {
+        throw new Error(
+          `対応していないファイル形式です。対応形式: ${ALLOWED_VIDEO_TYPES.join(
+            ', ',
+          )}`,
+        )
+      }
+
+      // Validate file size if provided
+      if (fileSize && fileSize > MAX_FILE_SIZE) {
+        throw new Error(
+          `ファイルサイズが大きすぎます。最大${
+            MAX_FILE_SIZE / 1024 / 1024
+          }MBまでです。`,
+        )
+      }
 
       // Create unique file path
       const timestamp = Date.now()
@@ -109,7 +135,7 @@ export const videoRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const video = await ctx.db.video.findUnique({
+      const video = await ctx.prisma.video.findUnique({
         where: { id: input.videoId },
       })
 
@@ -128,7 +154,7 @@ export const videoRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const video = await ctx.db.video.findUnique({
+      const video = await ctx.prisma.video.findUnique({
         where: { id: input.videoId },
       })
 
@@ -152,7 +178,7 @@ export const videoRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const video = await ctx.db.video.findUnique({
+      const video = await ctx.prisma.video.findUnique({
         where: { id: input.videoId },
       })
 
@@ -170,7 +196,7 @@ export const videoRouter = createTRPCRouter({
       }
 
       // Delete from database
-      await ctx.db.video.delete({
+      await ctx.prisma.video.delete({
         where: { id: input.videoId },
       })
 
@@ -179,7 +205,7 @@ export const videoRouter = createTRPCRouter({
 
   // List user's videos
   listVideos: protectedProcedure.query(async ({ ctx }) => {
-    const videos = await ctx.db.video.findMany({
+    const videos = await ctx.prisma.video.findMany({
       where: {
         userId: ctx.session?.user?.id || 'anonymous',
       },

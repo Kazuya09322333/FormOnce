@@ -48,7 +48,7 @@ export const ApikeyRouter = createTRPCRouter({
             Math.random().toString(36).substring(2) +
             Math.random().toString(36).substring(2),
           createdById: ctx.session.user.id,
-          workspaceId: ctx.session.user.workspaceId,
+          workspaceId: ctx.session.user.workspaceId!,
         },
       })
     } catch (error) {

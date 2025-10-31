@@ -21,7 +21,6 @@ import { ShareDialog } from '~/components/form-builder/share-dialog'
 import OverViewChart from '~/components/responses/overview-chart'
 import ResponsesTable from '~/components/responses/responses-table'
 import DashboardLayout from '~/layouts/dashboardLayout'
-import { getServerAuthSessionSupabase } from '~/server/auth-supabase'
 import { api } from '~/utils/api'
 import calculatePercentageDelta from '~/utils/responses/calculatePercentageDelta'
 
@@ -78,7 +77,7 @@ export default function Summary(props: TProps) {
       }).then(async () => {
         await refreshFormData()
         setShareDialogOpen(true)
-        toast.success('Form published', {
+        toast.success('フォームを公開しました', {
           position: 'top-center',
           duration: 1000,
         })
@@ -89,7 +88,7 @@ export default function Summary(props: TProps) {
       }).then(() => {
         void refreshFormData()
       })
-      toast.success('Form unpublished', {
+      toast.success('フォームを非公開にしました', {
         position: 'top-center',
         duration: 1000,
       })
@@ -182,20 +181,22 @@ export default function Summary(props: TProps) {
         description: formViewDelta,
       },
       {
-        title: 'Starts',
+        title: '開始数',
         value: formResponses.length ?? '-',
         description: formStartsDelta,
       },
       {
-        title: 'Responses',
+        title: '回答数',
         value: completedResponses?.length ?? '-',
         description: formResponseDelta,
       },
       {
-        title: 'Average time',
+        title: '平均時間',
         value: averageTime
           ? // convert seconds to minutes and seconds
-            `${Math.floor(averageTime / 60)}m ${Math.floor(averageTime % 60)}s`
+            `${Math.floor(averageTime / 60)}分 ${Math.floor(
+              averageTime % 60,
+            )}秒`
           : '-',
       },
     ]
@@ -215,7 +216,7 @@ export default function Summary(props: TProps) {
                   void router.push(`/dashboard/forms/${props.formId}`)
                 }
               >
-                Edit
+                編集
               </Button>
               <ShareDialog
                 link={
@@ -242,9 +243,9 @@ export default function Summary(props: TProps) {
                 {isPublishingForm || isUnpublishingForm ? (
                   <Icons.spinner className="mr-3 h-5 w-5 animate-spin" />
                 ) : formData?.form?.status === FormStatus.PUBLISHED ? (
-                  'Unpublish'
+                  '非公開にする'
                 ) : (
-                  'Publish'
+                  '公開する'
                 )}
               </Button>
             </div>
@@ -270,8 +271,8 @@ export default function Summary(props: TProps) {
             <Tabs defaultValue="overview" className="">
               <div className="flex justify-between">
                 <TabsList>
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="responses">Responses</TabsTrigger>
+                  <TabsTrigger value="overview">概要</TabsTrigger>
+                  <TabsTrigger value="responses">回答一覧</TabsTrigger>
                 </TabsList>
                 <CalendarDateRangePicker onChange={setDateRange} />
               </div>
@@ -307,22 +308,10 @@ export default function Summary(props: TProps) {
   )
 }
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const session = await getServerAuthSessionSupabase(ctx)
-
-  if (session?.user?.id) {
-    return {
-      props: {
-        formId: ctx.query.id,
-      },
-    }
-  }
-
+export const getServerSideProps: GetServerSideProps = (ctx) => {
   return {
-    redirect: {
-      destination: '/auth/signin',
-      permanent: false,
+    props: {
+      formId: ctx.query.id,
     },
-    props: {},
   }
 }

@@ -1,12 +1,8 @@
-/**
- * Supabase Auth用のサーバーサイド認証ヘルパー
- */
-
 import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
 import type { GetServerSidePropsContext } from 'next'
 
 /**
- * GetServerSidePropsでSupabaseセッションを取得
+ * Get the Supabase session for server-side rendering
  */
 export const getServerAuthSessionSupabase = async (
   ctx: GetServerSidePropsContext,
@@ -18,23 +14,21 @@ export const getServerAuthSessionSupabase = async (
     error,
   } = await supabase.auth.getUser()
 
-  // デバッグログ
-  console.log('[Auth Debug] Cookie:', ctx.req.headers.cookie?.substring(0, 100))
-  console.log(
-    '[Auth Debug] User:',
-    user ? `${user.id} (${user.email})` : 'null',
-  )
-  console.log('[Auth Debug] Error:', error)
+  console.log('[Auth Check] User:', user?.id, 'Error:', error?.message)
 
   if (!user) {
+    console.log('[Auth Check] No user found, returning null')
     return null
   }
+
+  console.log('[Auth Check] User found:', user.email)
 
   return {
     user: {
       id: user.id,
       email: user.email,
-      name: user.user_metadata.name || user.email,
+      name:
+        user.user_metadata?.name || user.user_metadata?.full_name || user.email,
     },
   }
 }

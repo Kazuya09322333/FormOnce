@@ -1,13 +1,20 @@
 import { Loader } from 'lucide-react'
-import type { GetServerSideProps } from 'next'
 import { useRouter } from 'next/router'
+import { useEffect } from 'react'
+import { useAuth } from '~/hooks/useAuth'
 import DashboardLayout from '~/layouts/dashboardLayout'
-import { getServerAuthSessionSupabase } from '~/server/auth-supabase'
 
 export default function Forms() {
   const router = useRouter()
+  const { user, loading } = useAuth()
 
-  void router.push('/dashboard/forms')
+  useEffect(() => {
+    if (!loading && !user) {
+      void router.push('/auth/signin')
+    } else if (!loading && user) {
+      void router.push('/dashboard/forms')
+    }
+  }, [user, loading, router])
 
   return (
     <DashboardLayout title="dashboard">
@@ -16,21 +23,4 @@ export default function Forms() {
       </div>
     </DashboardLayout>
   )
-}
-
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const session = await getServerAuthSessionSupabase(ctx)
-
-  if (!session?.user?.id) {
-    return {
-      redirect: {
-        destination: '/auth/signin',
-        permanent: false,
-      },
-    }
-  }
-
-  return {
-    props: {},
-  }
 }

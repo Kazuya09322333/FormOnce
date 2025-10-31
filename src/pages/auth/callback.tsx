@@ -33,8 +33,25 @@ export default function AuthCallback() {
 
       if (session) {
         console.log(
-          '[Callback Page] Session established, redirecting to dashboard',
+          '[Callback Page] Session established, setting up user workspace',
         )
+
+        // Setup user workspace (creates User and Workspace if first login)
+        try {
+          const setupResponse = await fetch('/api/auth/setup-user', {
+            method: 'POST',
+          })
+
+          if (!setupResponse.ok) {
+            console.error(
+              '[Callback Page] Failed to setup user:',
+              await setupResponse.text(),
+            )
+          }
+        } catch (error) {
+          console.error('[Callback Page] Error setting up user:', error)
+        }
+
         router.push('/dashboard')
       } else {
         console.log('[Callback Page] No session, redirecting to signin')

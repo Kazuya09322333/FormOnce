@@ -31,10 +31,10 @@ export default function Forms() {
   return (
     <DashboardLayout title="dashboard">
       <div className="flex justify-between">
-        <h2 className="text-3xl font-bold tracking-tight">All Forms</h2>
+        <h2 className="text-3xl font-bold tracking-tight">すべてのフォーム</h2>
         <Button onClick={onCreateNewForm}>
           <Icons.plus className="mr-2 h-4 w-4" />
-          Create a new form
+          新しいフォームを作成
         </Button>
       </div>
       <div className="mt-8">
@@ -88,22 +88,22 @@ export function AllFormsTable() {
 
   return (
     <Table>
-      <TableCaption>A list of your recent forms</TableCaption>
+      <TableCaption>最近のフォーム一覧</TableCaption>
       <TableHeader>
         <TableRow>
-          <TableHead>Form</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead>Edited</TableHead>
-          <TableHead>Responses</TableHead>
-          <TableHead>Author</TableHead>
+          <TableHead>フォーム名</TableHead>
+          <TableHead>ステータス</TableHead>
+          <TableHead>作成日</TableHead>
+          <TableHead>更新日</TableHead>
+          <TableHead>回答数</TableHead>
+          <TableHead>作成者</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         {isLoading ? (
           <TableRow>
             <TableCell colSpan={6} className="text-center">
-              Loading...
+              読み込み中...
             </TableCell>
           </TableRow>
         ) : null}
@@ -114,12 +114,14 @@ export function AllFormsTable() {
             onClick={() => handleClick(form)}
           >
             <TableCell className="font-medium">{form.name}</TableCell>
-            <TableCell>{form.status}</TableCell>
-            <TableCell className="text-xs">
-              {form.createdAt.toLocaleDateString()}
+            <TableCell>
+              {form.status === FormStatus.PUBLISHED ? '公開中' : '下書き'}
             </TableCell>
             <TableCell className="text-xs">
-              {form.updatedAt.toLocaleDateString()}
+              {form.createdAt.toLocaleDateString('ja-JP')}
+            </TableCell>
+            <TableCell className="text-xs">
+              {form.updatedAt.toLocaleDateString('ja-JP')}
             </TableCell>
             <TableCell className="text-xs">
               <div className="w-16 text-center">
@@ -153,12 +155,15 @@ export function AllFormsTable() {
                   className="w-54 space-y-2"
                 >
                   {form.status === FormStatus.DRAFT ? (
-                    <p className="w-48 text-sm">Delete this draft?</p>
+                    <p className="w-48 text-sm">この下書きを削除しますか？</p>
                   ) : (
                     <>
-                      <p className="w-48 text-sm">Delete this form?</p>
+                      <p className="w-48 text-sm">
+                        このフォームを削除しますか？
+                      </p>
                       <span className="text-xs text-muted-foreground">
-                        This form has {form.FormResponses.length} responses,
+                        このフォームには {form.FormResponses.length}{' '}
+                        件の回答があります
                       </span>{' '}
                     </>
                   )}
@@ -169,14 +174,14 @@ export function AllFormsTable() {
                       loading={isDeletingForm && variables?.id === form.id}
                       size={'sm'}
                     >
-                      Delete
+                      削除
                     </Button>
                     <Button
                       variant="secondary"
                       onClick={() => onOpenChange(false)}
                       size={'sm'}
                     >
-                      Cancel
+                      キャンセル
                     </Button>
                   </div>
                 </PopoverContent>
@@ -189,19 +194,4 @@ export function AllFormsTable() {
   )
 }
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const session = await getServerAuthSessionSupabase(ctx)
-
-  if (!session?.user?.id) {
-    return {
-      redirect: {
-        destination: '/auth/signin',
-        permanent: false,
-      },
-    }
-  }
-
-  return {
-    props: {},
-  }
-}
+// Server-side auth check removed - using client-side auth via useAuth hook

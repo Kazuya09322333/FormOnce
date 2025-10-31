@@ -1,11 +1,11 @@
 import { Button, Icons, Input } from '@components/ui'
-import { api } from '@utils/api'
 import { cn } from '@utils/cn'
 import { useFormik } from 'formik'
-import { signIn } from 'next-auth/react'
+import { useRouter } from 'next/router'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import RootLayout from '~/layouts/rootLayout'
+import { supabase } from '~/lib/supabase'
 
 export interface UserAuthFormProps
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -15,11 +15,8 @@ export interface UserAuthFormProps
 export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
   const [isGithubLoading, setisGithubLoading] = useState(false)
   const [isGoogleLoading, setisGoogleLoading] = useState(false)
-
-  const {
-    mutateAsync: signupUsingCredentials,
-    isLoading: isCredentialSignUpLoading,
-  } = api.auth.signup.useMutation()
+  const [isLoading, setIsLoading] = useState(false)
+  const router = useRouter()
 
   function onSubmit(event: React.SyntheticEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -46,37 +43,146 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
       return errors
     },
     onSubmit: async (values) => {
+      setIsLoading(true)
+
       try {
         if (props.role === 'signup') {
-          await signupUsingCredentials(values)
-        }
-        await signIn('credentials', {
-          email: values.email,
-          password: values.password,
-          callbackUrl: '/dashboard',
-        })
-      } catch (error) {
-        if (error instanceof Error) {
-          toast.error(error.message, {
+          // サインアップ
+          const { data, error } = await supabase.auth.signUp({
+            email: values.email,
+            password: values.password,
+            options: {
+              data: {
+                name: values.name,
+              },
+              emailRedirectTo: `${window.location.origin}/auth/callback`,
+            },
+          })
+
+          if (error) throw error
+
+          // Check if user is immediately logged in (email confirmation disabled)
+          const {
+            data: { session },
+          } = await supabase.auth.getSession()
+
+          if (session) {
+            // Email confirmation disabled - user is logged in immediately
+            // Setup workspace
+            const setupResponse = await fetch('/api/auth/setup-user', {
+              method: 'POST',
+            })
+
+            if (!setupResponse.ok) {
+              throw new Error('Failed to setup user workspace')
+            }
+
+            toast.success('アカウントが作成されました！', {
+              position: 'top-center',
+              duration: 2000,
+              closeButton: true,
+            })
+
+            void router.push('/dashboard')
+          } else {
+            // Email confirmation enabled - need to verify email first
+            toast.success(
+              '確認メールを送信しました！受信箱をご確認ください。',
+              {
+                position: 'top-center',
+                duration: 4000,
+                closeButton: true,
+              },
+            )
+
+            void router.push('/auth/signin')
+          }
+        } else {
+          // サインイン
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: values.email,
+            password: values.password,
+          })
+
+          if (error) throw error
+
+          toast.success('ログインしました！', {
             position: 'top-center',
             duration: 2000,
             closeButton: true,
           })
+
+          // ダッシュボードにリダイレクト
+          void router.push('/dashboard')
         }
+      } catch (error) {
+        if (error instanceof Error) {
+          toast.error(error.message, {
+            position: 'top-center',
+            duration: 3000,
+            closeButton: true,
+          })
+        }
+      } finally {
+        setIsLoading(false)
       }
     },
   })
 
-  const handleGithubSignIn = () => {
+  const handleGithubSignIn = async () => {
     setisGithubLoading(true)
-    void signIn('github', { callbackUrl: '/dashboard' })
-    setisGithubLoading(false)
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) {
+        toast.error(error.message, {
+          position: 'top-center',
+          duration: 3000,
+          closeButton: true,
+        })
+      }
+    } catch (error) {
+      console.error('GitHub sign in error:', error)
+    } finally {
+      setisGithubLoading(false)
+    }
   }
 
-  const handleGoogleSignIn = () => {
+  const handleGoogleSignIn = async () => {
     setisGoogleLoading(true)
-    void signIn('google', { callbackUrl: '/dashboard' })
-    setisGoogleLoading(false)
+    const redirectUrl = `${window.location.origin}/auth/callback`
+    console.log('[Google OAuth] Starting sign in with redirect:', redirectUrl)
+
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+        },
+      })
+
+      console.log('[Google OAuth] Response:', { data, error })
+
+      if (error) {
+        console.error('[Google OAuth] Error:', error)
+        toast.error(error.message, {
+          position: 'top-center',
+          duration: 3000,
+          closeButton: true,
+        })
+      } else {
+        console.log('[Google OAuth] Success, should redirect to:', data.url)
+      }
+    } catch (error) {
+      console.error('[Google OAuth] Exception:', error)
+    } finally {
+      setisGoogleLoading(false)
+    }
   }
 
   return (
@@ -93,7 +199,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                 autoCapitalize="none"
                 autoComplete="email"
                 autoCorrect="off"
-                disabled={isCredentialSignUpLoading}
+                disabled={isLoading}
                 value={formik.values.email}
                 onChange={formik.handleChange}
               />
@@ -105,7 +211,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                   type="text"
                   autoComplete="username"
                   autoCorrect="on"
-                  disabled={isCredentialSignUpLoading}
+                  disabled={isLoading}
                   value={formik.values.name}
                   onChange={formik.handleChange}
                 />
@@ -115,19 +221,21 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
                 label="Password"
                 placeholder="********"
                 type="password"
-                pattern=".{8,}"
+                pattern=".{6,}"
+                title="Password must be at least 6 characters"
                 autoComplete="password"
-                disabled={isCredentialSignUpLoading}
+                disabled={isLoading}
                 value={formik.values.password}
                 onChange={formik.handleChange}
               />
             </div>
-            <Button disabled={isCredentialSignUpLoading}>
-              {isCredentialSignUpLoading ||
-                (formik.isSubmitting && (
-                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                ))}
-              {props.role === 'signin' ? 'Sign in' : 'Sign up'} with Email
+            <Button disabled={isLoading}>
+              {(isLoading || formik.isSubmitting) && (
+                <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {props.role === 'signin'
+                ? 'メールアドレスでログイン'
+                : 'メールアドレスで登録'}
             </Button>
           </div>
         </form>
@@ -137,16 +245,14 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           </div>
           <div className="relative flex justify-center text-xs uppercase">
             <span className="bg-background px-2 text-muted-foreground">
-              Or continue with
+              または
             </span>
           </div>
         </div>
         <div className="flex flex-col-reverse gap-2">
           <Button
             variant="outline"
-            disabled={
-              isCredentialSignUpLoading || isGithubLoading || isGoogleLoading
-            }
+            disabled={isLoading || isGithubLoading || isGoogleLoading}
             onClick={handleGithubSignIn}
           >
             {isGithubLoading ? (
@@ -159,9 +265,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
           <Button
             variant="outline"
             loading={isGoogleLoading}
-            disabled={
-              isCredentialSignUpLoading || isGoogleLoading || isGithubLoading
-            }
+            disabled={isLoading || isGoogleLoading || isGithubLoading}
             onClick={handleGoogleSignIn}
           >
             <Icons.google className="mr-2 h-4 w-4" /> Google

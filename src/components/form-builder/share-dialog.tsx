@@ -31,7 +31,7 @@ export function ShareDialog({
 }: TShareDialogProps) {
   const handleCopy = () => {
     void navigator.clipboard.writeText(link)
-    toast.success('Link copied to clipboard', {
+    toast.success('リンクをコピーしました', {
       position: 'top-center',
       duration: 1500,
     })
@@ -41,15 +41,15 @@ export function ShareDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
         <Button disabled={disabled}>
-          Share
+          共有
           <Share className="ml-2 h-4 w-4" />
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Share link</DialogTitle>
+          <DialogTitle>共有リンク</DialogTitle>
           <DialogDescription>
-            Anyone who has this link will be able to fill this
+            このリンクを持っている人は誰でもフォームに回答できます
           </DialogDescription>
         </DialogHeader>
         <div className="flex items-center space-x-2">
@@ -67,7 +67,7 @@ export function ShareDialog({
         <DialogFooter className="sm:justify-start">
           <DialogClose asChild>
             <Button type="button" variant="secondary">
-              Close
+              閉じる
             </Button>
           </DialogClose>
         </DialogFooter>

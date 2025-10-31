@@ -57,7 +57,7 @@ export const webhooksRouter = createTRPCRouter({
             secret: input.secret,
             events: input.events,
             createdById: ctx.session.user.id,
-            workspaceId: ctx.session.user.workspaceId,
+            workspaceId: ctx.session.user.workspaceId!,
           },
         })
       } catch (error) {

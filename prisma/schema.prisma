@@ -1,210 +1,209 @@
 generator client {
-    provider      = "prisma-client-js"
-    binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
-    engineType    = "binary"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl", "linux-musl-openssl-3.0.x"]
+  engineType    = "binary"
 }
 
 datasource db {
-    provider  = "postgresql"
-    url       = env("DATABASE_URL")
-    directUrl = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-    id              String            @id @default(uuid())
-    email           String            @unique
-    name            String
-    image           String?
-    password        String?
-    refreshToken    String?
-    avatar          String?
-    emailVerified   DateTime?
-    createdAt       DateTime          @default(now())
-    updatedAt       DateTime          @updatedAt
-    WorkspaceMember WorkspaceMember[]
-    Accounts        Account[]
-    Sessions        Session[]
-    Form            Form[]
-    Webhook         Webhook[]
-    ApiKey          ApiKey[]
+  id              String            @id @default(uuid())
+  email           String            @unique
+  name            String
+  image           String?
+  password        String?
+  refreshToken    String?
+  avatar          String?
+  emailVerified   DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  Accounts        Account[]
+  ApiKey          ApiKey[]
+  Form            Form[]
+  Sessions        Session[]
+  Webhook         Webhook[]
+  WorkspaceMember WorkspaceMember[]
 }
 
 model Account {
-    id                String  @id @default(cuid())
-    userId            String
-    type              String
-    provider          String
-    providerAccountId String
-    refresh_token     String?
-    access_token      String?
-    expires_at        Int?
-    token_type        String?
-    scope             String?
-    id_token          String?
-    session_state     String?
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-    @@unique([provider, providerAccountId])
+  @@unique([provider, providerAccountId])
 }
 
 model Session {
-    id           String   @id @default(cuid())
-    sessionToken String   @unique
-    userId       String
-    expires      DateTime
-    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
-    identifier String
-    token      String   @unique
-    expires    DateTime
+  identifier String
+  token      String   @unique
+  expires    DateTime
 
-    @@unique([identifier, token])
+  @@unique([identifier, token])
 }
 
 model Waitlist {
-    id        String   @id @default(cuid())
-    email     String   @unique
-    createdAt DateTime @default(now())
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
 }
 
 model Form {
-    id            String         @id @default(uuid())
-    name          String
-    workspaceId   String
-    formSchema    Json           @default("{}")
-    questions     Json[]
-    status        FormStatus     @default(DRAFT)
-    link          String?
-    createdAt     DateTime       @default(now())
-    updatedAt     DateTime       @updatedAt
-    Workspace     Workspace      @relation(fields: [workspaceId], references: [id])
-    author        User?          @relation(fields: [authorId], references: [id])
-    authorId      String?
-    FormResponses FormResponse[]
-    FormViews     FormViews[]
+  id            String         @id @default(uuid())
+  name          String
+  workspaceId   String
+  formSchema    Json           @default("{}")
+  questions     Json[]
+  status        FormStatus     @default(DRAFT)
+  link          String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  authorId      String?
+  author        User?          @relation(fields: [authorId], references: [id])
+  Workspace     Workspace      @relation(fields: [workspaceId], references: [id])
+  FormResponses FormResponse[]
+  FormViews     FormViews[]
 }
 
 model FormViews {
-    id           String        @id @default(uuid())
-    formId       String
-    ip           String?
-    userAgent    String?
-    createdAt    DateTime      @default(now())
-    updatedAt    DateTime      @updatedAt
-    Forms        Form          @relation(fields: [formId], references: [id], onDelete: Cascade)
-    FormResponse FormResponse?
+  id           String        @id @default(uuid())
+  formId       String
+  ip           String?
+  userAgent    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  FormResponse FormResponse?
+  Forms        Form          @relation(fields: [formId], references: [id], onDelete: Cascade)
 }
 
 model FormResponse {
-    id          String    @id @default(uuid())
-    formId      String
-    response    Json      @default("{}")
-    completed   DateTime?
-    createdAt   DateTime  @default(now())
-    updatedAt   DateTime  @updatedAt
-    Forms       Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
-    FormViews   FormViews @relation(fields: [formViewsId], references: [id])
-    formViewsId String    @unique
+  id          String    @id @default(uuid())
+  formId      String
+  response    Json      @default("{}")
+  completed   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  formViewsId String    @unique
+  Forms       Form      @relation(fields: [formId], references: [id], onDelete: Cascade)
+  FormViews   FormViews @relation(fields: [formViewsId], references: [id])
 }
 
 model Workspace {
-    id               String            @id @default(uuid())
-    name             String            @unique
-    icon             String?
-    createdAt        DateTime          @default(now())
-    updatedAt        DateTime          @updatedAt
-    isPersonal       Boolean           @default(false)
-    Forms            Form[]
-    WorkspaceMembers WorkspaceMember[]
-    Webhooks         Webhook[]
-    ApiKeys          ApiKey[]
+  id               String            @id @default(uuid())
+  name             String            @unique
+  icon             String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  isPersonal       Boolean           @default(false)
+  ApiKeys          ApiKey[]
+  Forms            Form[]
+  Webhooks         Webhook[]
+  WorkspaceMembers WorkspaceMember[]
 }
 
 model WorkspaceMember {
-    id          String    @id @default(uuid())
-    role        Role
-    userId      String
-    workspaceId String
-    createdAt   DateTime  @default(now())
-    updatedAt   DateTime  @updatedAt
-    User        User      @relation(fields: [userId], references: [id])
-    Workspace   Workspace @relation(fields: [workspaceId], references: [id])
-}
-
-enum FormStatus {
-    DRAFT
-    PUBLISHED
-}
-
-enum Role {
-    OWNER
-    ADMIN
-    MEMBER
-}
-
-enum WebhookTriggerEvent {
-    RESPONSE_SUBMITTED
-    RESPONSE_UPDATED
+  id          String    @id @default(uuid())
+  role        Role
+  userId      String
+  workspaceId String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  User        User      @relation(fields: [userId], references: [id])
+  Workspace   Workspace @relation(fields: [workspaceId], references: [id])
 }
 
 model Webhook {
-    id            String                @id @default(uuid())
-    name          String
-    url           String
-    secret        String
-    enabled       Boolean               @default(true)
-    workspace     Workspace             @relation(fields: [workspaceId], references: [id])
-    workspaceId   String
-    createdBy     User                  @relation(fields: [createdById], references: [id])
-    createdById   String
-    events        WebhookTriggerEvent[]
-    createdAt     DateTime              @default(now())
-    updatedAt     DateTime              @updatedAt
-    WebhookRecord WebhookRecord[]
+  id            String                @id @default(uuid())
+  name          String
+  url           String
+  secret        String
+  enabled       Boolean               @default(true)
+  workspaceId   String
+  createdById   String
+  events        WebhookTriggerEvent[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  createdBy     User                  @relation(fields: [createdById], references: [id])
+  workspace     Workspace             @relation(fields: [workspaceId], references: [id])
+  WebhookRecord WebhookRecord[]
 }
 
 model WebhookRecord {
-    id              String              @id @default(uuid())
-    webhookId       String
-    event           WebhookTriggerEvent
-    payload         Json
-    responseBody    Json
-    responseStatus  Int
-    responseHeaders Json
-    createdAt       DateTime            @default(now())
-    updatedAt       DateTime            @updatedAt
-    Webhook         Webhook             @relation(fields: [webhookId], references: [id])
+  id              String              @id @default(uuid())
+  webhookId       String
+  event           WebhookTriggerEvent
+  payload         Json
+  responseBody    Json
+  responseStatus  Int
+  responseHeaders Json
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  Webhook         Webhook             @relation(fields: [webhookId], references: [id])
 }
 
 model ApiKey {
-    id          String    @id @default(uuid())
-    key         String    @unique
-    name        String
-    enabled     Boolean   @default(true)
-    workspaceId String
-    Workspace   Workspace @relation(fields: [workspaceId], references: [id])
-    createdBy   User      @relation(fields: [createdById], references: [id])
-    createdById String
-    createdAt   DateTime  @default(now())
-    updatedAt   DateTime  @updatedAt
+  id          String    @id @default(uuid())
+  key         String    @unique
+  name        String
+  enabled     Boolean   @default(true)
+  workspaceId String
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  Workspace   Workspace @relation(fields: [workspaceId], references: [id])
 }
 
 model Video {
-    id        String      @id @default(uuid())
-    title     String
-    filePath  String
-    url       String
-    userId    String
-    status    VideoStatus @default(PROCESSING)
-    createdAt DateTime    @default(now())
-    updatedAt DateTime    @updatedAt
+  id        String      @id @default(uuid())
+  title     String
+  filePath  String
+  url       String
+  userId    String
+  status    VideoStatus @default(PROCESSING)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum WebhookTriggerEvent {
+  RESPONSE_SUBMITTED
+  RESPONSE_UPDATED
 }
 
 enum VideoStatus {
-    PROCESSING
-    READY
-    FAILED
+  PROCESSING
+  READY
+  FAILED
 }
