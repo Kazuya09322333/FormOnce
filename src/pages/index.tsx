@@ -15,7 +15,6 @@ import {
   Gauge,
   Globe,
   HeartHandshake,
-  Infinity,
   Linkedin,
   Lock,
   Mail,
@@ -977,7 +976,7 @@ export default function Home({ id }: { id: string }) {
                 <p className="text-sm text-purple-100">登録後すぐに利用可能</p>
               </div>
               <div className="flex flex-col items-center">
-                <Infinity className="h-10 w-10 mb-3" />
+                <Zap className="h-10 w-10 mb-3" />
                 <h3 className="font-semibold mb-1">無制限お試し</h3>
                 <p className="text-sm text-purple-100">全機能を14日間無料</p>
               </div>
