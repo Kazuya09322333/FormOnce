@@ -1,5 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
+import { randomUUID } from 'crypto'
 import { z } from 'zod'
+import { getSupabaseAdmin } from '~/lib/supabase'
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -14,30 +15,6 @@ const ALLOWED_VIDEO_TYPES = [
   'video/x-msvideo',
   'video/webm',
 ]
-
-// Lazy initialization of Supabase client to avoid errors when env vars are not set
-let supabaseAdmin: ReturnType<typeof createClient> | null = null
-
-function getSupabaseAdmin() {
-  if (!supabaseAdmin) {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error(
-        'Missing Supabase configuration. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.',
-      )
-    }
-
-    supabaseAdmin = createClient(supabaseUrl, supabaseKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
-    })
-  }
-  return supabaseAdmin
-}
 
 export const videoRouter = createTRPCRouter({
   // Get signed upload URL for direct upload from client
@@ -93,6 +70,82 @@ export const videoRouter = createTRPCRouter({
       }
     }),
 
+  // Upload thumbnail for video
+  uploadThumbnail: protectedProcedure
+    .input(
+      z.object({
+        videoId: z.string(),
+        thumbnailBase64: z.string(), // Base64 encoded image
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { videoId, thumbnailBase64 } = input
+      const supabase = getSupabaseAdmin()
+
+      // Get video to ensure it exists and belongs to user
+      const { data: video, error: videoError } = await supabase
+        .from('Video')
+        .select()
+        .eq('id', videoId)
+        .single()
+
+      if (videoError || !video) {
+        throw new Error('Video not found')
+      }
+
+      type VideoType = {
+        userId: string
+        filePath: string
+      }
+
+      const typedVideo = video as VideoType
+
+      // Verify ownership
+      if (typedVideo.userId !== ctx.session?.user?.id) {
+        throw new Error('Unauthorized')
+      }
+
+      // Convert base64 to buffer
+      const base64Data = thumbnailBase64.replace(/^data:image\/\w+;base64,/, '')
+      const buffer = Buffer.from(base64Data, 'base64')
+
+      // Create thumbnail file path
+      const thumbnailPath = `${typedVideo.filePath}_thumbnail.jpg`
+
+      // Upload thumbnail to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from(VIDEOS_BUCKET)
+        .upload(thumbnailPath, buffer, {
+          contentType: 'image/jpeg',
+          upsert: true,
+        })
+
+      if (uploadError) {
+        console.error('Error uploading thumbnail:', uploadError)
+        throw new Error(`Failed to upload thumbnail: ${uploadError.message}`)
+      }
+
+      // Get public URL for thumbnail
+      const { data: urlData } = supabase.storage
+        .from(VIDEOS_BUCKET)
+        .getPublicUrl(thumbnailPath)
+
+      // Update video with thumbnail URL
+      const { error: updateError } = await supabase
+        .from('Video')
+        .update({ thumbnailUrl: urlData.publicUrl })
+        .eq('id', videoId)
+
+      if (updateError) {
+        console.error('Error updating video with thumbnail:', updateError)
+        throw new Error(`Failed to update video: ${updateError.message}`)
+      }
+
+      return {
+        thumbnailUrl: urlData.publicUrl,
+      }
+    }),
+
   // Finalize video after upload
   finalizeVideo: protectedProcedure
     .input(
@@ -103,27 +156,46 @@ export const videoRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const { filePath, title } = input
+      const supabase = getSupabaseAdmin()
 
       // Get public URL for the video
-      const { data } = getSupabaseAdmin()
-        .storage.from(VIDEOS_BUCKET)
+      const { data } = supabase.storage
+        .from(VIDEOS_BUCKET)
         .getPublicUrl(filePath)
 
       // Store video metadata in database
-      const video = await ctx.prisma.video.create({
-        data: {
+      const { data: video, error } = await supabase
+        .from('Video')
+        .insert({
+          id: randomUUID(),
           title: title,
           filePath: filePath,
           url: data.publicUrl,
           userId: ctx.session?.user?.id || 'anonymous',
           status: 'READY',
-        },
-      })
+          updatedAt: new Date().toISOString(),
+        } as any)
+        .select()
+        .single()
+
+      if (error || !video) {
+        console.error('Error creating video:', error)
+        throw new Error(
+          `Failed to create video: ${error?.message || 'Unknown error'}`,
+        )
+      }
+
+      type VideoType = {
+        id: string
+        filePath: string
+      }
+
+      const typedVideo = video as VideoType
 
       return {
-        videoId: video.id,
+        videoId: typedVideo.id,
         url: data.publicUrl,
-        filePath: filePath,
+        filePath: typedVideo.filePath,
       }
     }),
 
@@ -135,11 +207,15 @@ export const videoRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const video = await ctx.prisma.video.findUnique({
-        where: { id: input.videoId },
-      })
+      const supabase = getSupabaseAdmin()
 
-      if (!video) {
+      const { data: video, error } = await supabase
+        .from('Video')
+        .select()
+        .eq('id', input.videoId)
+        .single()
+
+      if (error || !video) {
         throw new Error('Video not found')
       }
 
@@ -154,19 +230,32 @@ export const videoRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const video = await ctx.prisma.video.findUnique({
-        where: { id: input.videoId },
-      })
+      const supabase = getSupabaseAdmin()
 
-      if (!video) {
+      const { data: video, error } = await supabase
+        .from('Video')
+        .select()
+        .eq('id', input.videoId)
+        .single()
+
+      if (error || !video) {
         throw new Error('Video not found')
       }
 
+      type VideoStatusType = {
+        status: string
+        id: string
+        title: string
+        url: string
+      }
+
+      const typedVideo = video as VideoStatusType
+
       return {
-        status: video.status,
-        videoId: video.id,
-        title: video.title,
-        url: video.url,
+        status: typedVideo.status,
+        videoId: typedVideo.id,
+        title: typedVideo.title,
+        url: typedVideo.url,
       }
     }),
 
@@ -178,41 +267,61 @@ export const videoRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const video = await ctx.prisma.video.findUnique({
-        where: { id: input.videoId },
-      })
+      const supabase = getSupabaseAdmin()
 
-      if (!video) {
+      const { data: video, error: fetchError } = await supabase
+        .from('Video')
+        .select()
+        .eq('id', input.videoId)
+        .single()
+
+      if (fetchError || !video) {
         throw new Error('Video not found')
       }
 
+      type VideoWithFilePath = {
+        filePath: string
+      }
+
+      const typedVideo = video as VideoWithFilePath
+
       // Delete from storage
-      const { error } = await getSupabaseAdmin()
-        .storage.from(VIDEOS_BUCKET)
-        .remove([video.filePath])
+      const { error } = await supabase.storage
+        .from(VIDEOS_BUCKET)
+        .remove([typedVideo.filePath])
 
       if (error) {
         console.error('Error deleting video from storage:', error)
       }
 
       // Delete from database
-      await ctx.prisma.video.delete({
-        where: { id: input.videoId },
-      })
+      const { error: deleteError } = await supabase
+        .from('Video')
+        .delete()
+        .eq('id', input.videoId)
+
+      if (deleteError) {
+        console.error('Error deleting video from database:', deleteError)
+        throw new Error(`Failed to delete video: ${deleteError.message}`)
+      }
 
       return { success: true }
     }),
 
   // List user's videos
   listVideos: protectedProcedure.query(async ({ ctx }) => {
-    const videos = await ctx.prisma.video.findMany({
-      where: {
-        userId: ctx.session?.user?.id || 'anonymous',
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    })
+    const supabase = getSupabaseAdmin()
+
+    const { data: videos, error } = await supabase
+      .from('Video')
+      .select()
+      .eq('userId', ctx.session?.user?.id || 'anonymous')
+      .order('createdAt', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching videos:', error)
+      throw new Error(`Failed to fetch videos: ${error.message}`)
+    }
 
     return videos
   }),

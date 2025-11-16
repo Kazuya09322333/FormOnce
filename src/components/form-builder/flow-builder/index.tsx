@@ -1,5 +1,5 @@
 import { Form } from '@prisma/client'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import ReactFlow, {
   Controls,
   Background,
@@ -15,7 +15,12 @@ import ReactFlow, {
 import 'reactflow/dist/style.css'
 import { TLogic, TQuestion } from '~/types/question.types'
 import { api } from '~/utils/api'
+import ImprovedCustomEdge from './ImprovedCustomEdge'
+import ImprovedEndNode from './ImprovedEndNode'
+import ImprovedQuestionNode from './ImprovedQuestionNode'
+import ImprovedStartNode from './ImprovedStartNode'
 import QuestionNode from './QuestionNode'
+import { AddQuestionDialog } from './add-question-dialog'
 import CustomEdge from './custom-edge'
 import { EditQuestion } from './edit-question'
 import EndNode from './end-node'
@@ -32,13 +37,13 @@ type FlowBuilderProps = {
 }
 
 const nodeTypes = {
-  question: QuestionNode,
-  start: StartNode,
-  endNode: EndNode,
+  question: ImprovedQuestionNode,
+  start: ImprovedStartNode,
+  endNode: ImprovedEndNode,
 }
 
 const edgeTypes = {
-  custom: CustomEdge,
+  custom: ImprovedCustomEdge,
 }
 
 export const FlowBuilder = ({ formId }: FlowBuilderProps) => {
@@ -53,85 +58,9 @@ export const FlowBuilder = ({ formId }: FlowBuilderProps) => {
     {
       enabled: !!formId && formId !== 'new',
       refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
       retry: false,
-      onSuccess(data) {
-        if (!data.form) return
-
-        const questions = data.form.questions as TQuestion[]
-        const updatedNodes: Node[] = questions.map((question, i) => ({
-          id: question.id!,
-          data: {
-            label: `${i + 1}. ${question.title}`,
-            question,
-            formId: data.form?.id,
-            refreshFormData,
-          },
-          position: question.position || {
-            x: (i + 1) * DEFAULT_EDGE_LENGTH,
-            y: 100,
-          },
-          type: 'question',
-        }))
-
-        const startNode = nodes[0]
-        const endNode = nodes[nodes.length - 1]
-
-        if (!startNode || !endNode) return
-        updatedNodes.unshift(startNode)
-
-        const lastQ = questions[questions.length - 1]
-        updatedNodes.push({
-          id: 'end',
-          data: { label: 'End' },
-          type: 'endNode',
-          position: lastQ?.position
-            ? {
-                x: lastQ?.position.x + DEFAULT_EDGE_LENGTH,
-                y: lastQ?.position.y,
-              }
-            : { x: (questions.length + 1) * DEFAULT_EDGE_LENGTH, y: 100 },
-        })
-
-        const updatedEdges: Edge[] = questions.flatMap((question) => {
-          return question.logic!.map((logic) => ({
-            id: `${question.id}-${logic.skipTo}`,
-            source: question.id!,
-            target: logic.skipTo,
-            data: {
-              formId: formId,
-              refreshFormData,
-              logic: logic,
-              showLogic: false,
-              setIsEdgeClickBlocked,
-            },
-            type: 'custom',
-            style: { stroke: 'white', strokeWidth: 2 },
-          }))
-        })
-
-        updatedEdges.unshift({
-          id: 'start',
-          source: 'start',
-          target: questions[0]?.id! ?? 'end',
-          data: {
-            formId: formId,
-            refreshFormData,
-            setIsEdgeClickBlocked: () => void 0,
-            logic: {
-              questionId: 'start',
-              condition: 'always',
-              value: '',
-              skipTo: questions[0]?.id!,
-            },
-            showLogic: false,
-          },
-          type: 'custom',
-          style: { stroke: 'white', strokeWidth: 2 },
-        })
-
-        setEdges(updatedEdges)
-        setNodes(updatedNodes)
-      },
     },
   )
 
@@ -139,12 +68,14 @@ export const FlowBuilder = ({ formId }: FlowBuilderProps) => {
 
   const [editQuestionOpen, setEditQuestionOpen] = useState(false)
   const [editingNode, setEditingNode] = useState<Node | null>(null)
+  const [addQuestionOpen, setAddQuestionOpen] = useState(false)
 
   const [isEdgeClickBlocked, setIsEdgeClickBlocked] = useState(false)
 
   const formData = data?.form
   const questions = (formData?.questions ?? []) as TQuestion[]
 
+  const { mutateAsync: addQuestion } = api.form.addQuestion.useMutation()
   const { mutateAsync: editQuestion } = api.form.editQuestion.useMutation()
   const { mutateAsync: deleteQuestion } = api.form.deleteQuestion.useMutation()
   const { mutateAsync: duplicateQuestion } =
@@ -196,6 +127,89 @@ export const FlowBuilder = ({ formId }: FlowBuilderProps) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes)
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
 
+  // Update nodes and edges when data changes
+  useEffect(() => {
+    if (!data?.form) return
+
+    const questions = data.form.questions as TQuestion[]
+    const updatedNodes: Node[] = questions.map((question, i) => ({
+      id: question.id!,
+      data: {
+        label: `${i + 1}. ${question.title}`,
+        question,
+        formId: data.form?.id,
+        refreshFormData,
+        allQuestions: questions,
+      },
+      position: question.position || {
+        x: (i + 1) * DEFAULT_EDGE_LENGTH,
+        y: 100,
+      },
+      type: 'question',
+    }))
+
+    const startNode = nodes[0]
+    const endNode = nodes[nodes.length - 1]
+
+    if (!startNode || !endNode) return
+    updatedNodes.unshift(startNode)
+
+    const lastQ = questions[questions.length - 1]
+    updatedNodes.push({
+      id: 'end',
+      data: { label: 'End' },
+      type: 'endNode',
+      position: lastQ?.position
+        ? {
+            x: lastQ?.position.x + DEFAULT_EDGE_LENGTH,
+            y: lastQ?.position.y,
+          }
+        : { x: (questions.length + 1) * DEFAULT_EDGE_LENGTH, y: 100 },
+    })
+
+    const updatedEdges: Edge[] = questions.flatMap((question) => {
+      return question.logic!.map((logic) => ({
+        id: `${question.id}-${logic.skipTo}`,
+        source: question.id!,
+        target: logic.skipTo,
+        data: {
+          formId: formId,
+          refreshFormData,
+          logic: logic,
+          showLogic: false,
+          setIsEdgeClickBlocked,
+          condition: logic.condition,
+          label: `${logic.condition}: ${logic.value}`,
+          allQuestions: questions,
+        },
+        type: 'custom',
+      }))
+    })
+
+    updatedEdges.unshift({
+      id: 'start',
+      source: 'start',
+      target: questions[0]?.id! ?? 'end',
+      data: {
+        formId: formId,
+        refreshFormData,
+        setIsEdgeClickBlocked: () => void 0,
+        logic: {
+          questionId: 'start',
+          condition: 'always',
+          value: '',
+          skipTo: questions[0]?.id!,
+        },
+        showLogic: false,
+        allQuestions: questions,
+      },
+      type: 'custom',
+    })
+
+    setEdges(updatedEdges)
+    setNodes(updatedNodes)
+  }, [data])
+
   const onConnect = useCallback(
     (params: Edge | Connection) => setEdges((eds) => addEdge(params, eds)),
     [],
@@ -236,10 +250,6 @@ export const FlowBuilder = ({ formId }: FlowBuilderProps) => {
           ? {
               ...ed,
               animated: true,
-              style: {
-                stroke: 'white',
-                strokeWidth: 4,
-              },
               data: {
                 ...ed.data,
                 showLogic: true,
@@ -257,10 +267,6 @@ export const FlowBuilder = ({ formId }: FlowBuilderProps) => {
           ? {
               ...ed,
               animated: false,
-              style: {
-                stroke: 'white',
-                strokeWidth: 2,
-              },
               data: {
                 ...ed.data,
                 showLogic: false,
@@ -291,8 +297,18 @@ export const FlowBuilder = ({ formId }: FlowBuilderProps) => {
     setEditingNode(sourceNode)
   }
 
-  const onEditQuestion = () => {
-    // edit question
+  const onEditQuestion = async (values: Partial<TQuestion>) => {
+    if (!editingNode || !formData) return
+
+    await editQuestion({
+      formId: formData.id,
+      question: {
+        ...values,
+        id: editingNode.id,
+      } as TQuestion & { id: string },
+    })
+
+    await refreshFormData()
     setEditQuestionOpen(false)
   }
 
@@ -310,6 +326,23 @@ export const FlowBuilder = ({ formId }: FlowBuilderProps) => {
       questionId: editingNode?.id!,
     })
     refreshFormData()
+  }
+
+  const onAddQuestion = async (questionData: TQuestion) => {
+    // If formId is 'new', we can't add questions yet
+    if (formId === 'new') {
+      setAddQuestionOpen(false)
+      return
+    }
+
+    await addQuestion({
+      formId: formId,
+      question: questionData,
+      targetIdx: questions.length,
+      targetQuestionId: 'end',
+    })
+    refreshFormData()
+    setAddQuestionOpen(false)
   }
 
   const onClose = () => {
@@ -339,7 +372,7 @@ export const FlowBuilder = ({ formId }: FlowBuilderProps) => {
   if (isFetching) return <div>Loading...</div>
 
   return (
-    <div className="h-[100%]">
+    <div className="h-[100%] relative">
       <ReactFlow
         proOptions={proOptions}
         nodes={nodes}
@@ -364,23 +397,44 @@ export const FlowBuilder = ({ formId }: FlowBuilderProps) => {
             if (firstQ && secondQ && startNode) {
               reactFlowInstance.fitView({
                 nodes: [startNode, firstQ, secondQ],
-                padding: 100,
+                padding: 150,
                 duration: 500,
-                minZoom: 0.7,
+                minZoom: 0.5,
+                maxZoom: 1.2,
               })
             } else {
               reactFlowInstance.fitView({
-                padding: 100,
+                padding: 150,
                 duration: 500,
-                minZoom: 0.7,
+                minZoom: 0.5,
+                maxZoom: 1.2,
               })
             }
           }, 250)
         }}
       >
         <Background />
-        <Controls position="bottom-left" />
-        <MiniMap zoomable pannable position="bottom-right" />
+        <Controls
+          position="bottom-left"
+          showZoom={true}
+          showFitView={true}
+          showInteractive={true}
+        />
+        <MiniMap
+          zoomable
+          pannable
+          position="bottom-right"
+          nodeColor="#8b5cf6"
+          nodeBorderRadius={8}
+          maskColor="rgba(0, 0, 0, 0.2)"
+          style={{
+            height: 150,
+            width: 200,
+            border: '2px solid #8b5cf6',
+            borderRadius: '8px',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+          }}
+        />
       </ReactFlow>
       <EditQuestion
         isOpen={editQuestionOpen}
@@ -390,6 +444,11 @@ export const FlowBuilder = ({ formId }: FlowBuilderProps) => {
         onUpdateLogic={onUpdateLogic}
         onDelete={onDeleteQuestion}
         onDuplicate={onDuplicateQuestion}
+      />
+      <AddQuestionDialog
+        open={addQuestionOpen}
+        onOpenChange={setAddQuestionOpen}
+        onAdd={onAddQuestion}
       />
     </div>
   )

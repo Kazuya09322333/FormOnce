@@ -69,7 +69,13 @@ const ApiKeysTable = () => {
   } = api.apiKey.getAll.useQuery(undefined, {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-  })
+  }) as {
+    data:
+      | (ApiKey & { createdBy: { id: string; name: string | null } })[]
+      | undefined
+    isLoading: boolean
+    refetch: () => Promise<any>
+  }
 
   const { mutateAsync: enableKey } = api.apiKey.enable.useMutation()
   const { mutateAsync: disableKey } = api.apiKey.disable.useMutation()

@@ -17,6 +17,7 @@ import {
   Textarea,
 } from '../ui'
 import { Checkbox } from '../ui/checkbox'
+import { VideoAskPlayer } from '../video-ask-player'
 
 type TInputRenderProps = {
   question: TQuestion
@@ -24,18 +25,62 @@ type TInputRenderProps = {
   field: ControllerRenderProps<Record<string, any>, string>
   // biome-ignore lint/suspicious/noExplicitAny: <explanation>
   formControl: Control<Record<string, any>, string>
+  onAnswerSelect?: (answer: string, skipTo?: string) => void
 }
 
 export const InputRenderer = ({
   question,
   field,
   formControl,
+  onAnswerSelect,
 }: // ...props
 TInputRenderProps) => {
+  // VideoAsk-style rendering for questions with video and options
+  if (
+    question.videoUrl &&
+    question.type === EQuestionType.Select &&
+    'options' in question &&
+    question.options &&
+    question.options.length > 0
+  ) {
+    return (
+      <div className="flex items-center justify-center min-h-[80vh]">
+        <VideoAskPlayer
+          videoUrl={question.videoUrl}
+          question={question}
+          onAnswerSelect={(answer, skipTo) => {
+            // Update the form field with the selected answer
+            if (question.subType === ESelectSubType.Single) {
+              field.onChange([answer])
+            } else {
+              field.onChange([...((field.value as string[]) || []), answer])
+            }
+            // Call the callback if provided
+            if (onAnswerSelect) {
+              onAnswerSelect(answer, skipTo)
+            }
+          }}
+        />
+      </div>
+    )
+  }
+
   switch (question.type) {
     case EQuestionType.Text:
       return (
         <FormItem>
+          {question.videoUrl && (
+            <div className="mb-4 rounded-lg overflow-hidden">
+              <video
+                src={question.videoUrl}
+                controls
+                className="w-full max-h-96 bg-black"
+                preload="metadata"
+              >
+                お使いのブラウザは動画タグをサポートしていません。
+              </video>
+            </div>
+          )}
           <FormLabel>{question.title}</FormLabel>
           <FormControl>
             <RenderTextInput
@@ -51,11 +96,25 @@ TInputRenderProps) => {
 
     case EQuestionType.Select:
       return (
-        <RenderSelectInput
-          question={question}
-          field={field}
-          formControl={formControl}
-        />
+        <FormItem>
+          {question.videoUrl && (
+            <div className="mb-4 rounded-lg overflow-hidden">
+              <video
+                src={question.videoUrl}
+                controls
+                className="w-full max-h-96 bg-black"
+                preload="metadata"
+              >
+                お使いのブラウザは動画タグをサポートしていません。
+              </video>
+            </div>
+          )}
+          <RenderSelectInput
+            question={question}
+            field={field}
+            formControl={formControl}
+          />
+        </FormItem>
       )
     default:
       return (
@@ -201,7 +260,7 @@ const RenderSelectInput = ({
     case ESelectSubType.Multiple:
     case ESelectSubType.Single:
       return (
-        <FormItem>
+        <>
           <div className="mb-4">
             <FormLabel className="text-base">{question.title}</FormLabel>
             <FormDescription>{question.description}</FormDescription>
@@ -239,7 +298,7 @@ const RenderSelectInput = ({
             />
           ))}
           <FormMessage />
-        </FormItem>
+        </>
       )
     default:
       return <></>

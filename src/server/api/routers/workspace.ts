@@ -1,5 +1,6 @@
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
+import { getSupabaseAdmin } from '~/lib/supabase'
 import { createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 
 /** Index
@@ -12,22 +13,50 @@ export const workspaceRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       try {
         const userId = ctx.session.user.id
-        return await ctx.prisma.workspace.create({
-          data: {
+        const supabase = getSupabaseAdmin()
+
+        // Create workspace
+        const { data: workspace, error: workspaceError } = await supabase
+          .from('Workspace')
+          .insert({
             name: input.name,
             isPersonal: false,
-            WorkspaceMembers: {
-              create: {
-                role: 'OWNER',
-                User: {
-                  connect: {
-                    id: userId,
-                  },
-                },
-              },
-            },
-          },
-        })
+          } as any)
+          .select()
+          .single()
+
+        if (workspaceError || !workspace) {
+          console.log(workspaceError)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Something went wrong',
+          })
+        }
+
+        type WorkspaceType = {
+          id: string
+        }
+
+        const typedWorkspace = workspace as WorkspaceType
+
+        // Create workspace member
+        const { error: memberError } = await supabase
+          .from('WorkspaceMember')
+          .insert({
+            role: 'OWNER',
+            userId: userId,
+            workspaceId: typedWorkspace.id,
+          } as any)
+
+        if (memberError) {
+          console.log(memberError)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Something went wrong',
+          })
+        }
+
+        return workspace
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -42,25 +71,43 @@ export const workspaceRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       try {
         const userId = ctx.session.user.id
-        const workspace = await ctx.prisma.workspace.findFirst({
-          where: {
-            id: input.id,
-            WorkspaceMembers: {
-              some: {
-                userId: userId,
-              },
-            },
-          },
-        })
-        if (!workspace) {
+        const supabase = getSupabaseAdmin()
+
+        // First check if user is a member of this workspace
+        const { data: membership } = await supabase
+          .from('WorkspaceMember')
+          .select('workspaceId')
+          .eq('workspaceId', input.id)
+          .eq('userId', userId)
+          .single()
+
+        if (!membership) {
           throw new TRPCError({
             code: 'NOT_FOUND',
             message: 'Workspace not found',
           })
         }
+
+        // Get the workspace
+        const { data: workspace, error } = await supabase
+          .from('Workspace')
+          .select()
+          .eq('id', input.id)
+          .single()
+
+        if (error || !workspace) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Workspace not found',
+          })
+        }
+
         return workspace
       } catch (error) {
         console.log(error)
+        if (error instanceof TRPCError) {
+          throw error
+        }
         throw new TRPCError({
           code: 'INTERNAL_SERVER_ERROR',
           message: 'Something went wrong',
@@ -71,24 +118,64 @@ export const workspaceRouter = createTRPCRouter({
   getAll: protectedProcedure.query(async ({ ctx }) => {
     try {
       const userId = ctx.session.user.id
-      const workspace = await ctx.prisma.workspace.findMany({
-        where: {
-          WorkspaceMembers: {
-            some: {
-              userId: userId,
-            },
-          },
-        },
-      })
+      const supabase = getSupabaseAdmin()
+
+      // Get all workspace IDs the user is a member of
+      const { data: memberships, error: membershipError } = await supabase
+        .from('WorkspaceMember')
+        .select('workspaceId')
+        .eq('userId', userId)
+
+      if (membershipError) {
+        console.log(membershipError)
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Something went wrong',
+        })
+      }
+
+      if (!memberships || memberships.length === 0) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: 'Workspace not found',
+        })
+      }
+
+      type MembershipType = {
+        workspaceId: string
+      }
+
+      const workspaceIds = memberships.map(
+        (m) => (m as MembershipType).workspaceId,
+      )
+
+      // Get all workspaces
+      const { data: workspace, error } = await supabase
+        .from('Workspace')
+        .select()
+        .in('id', workspaceIds)
+
+      if (error) {
+        console.log(error)
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Something went wrong',
+        })
+      }
+
       if (!workspace) {
         throw new TRPCError({
           code: 'NOT_FOUND',
           message: 'Workspace not found',
         })
       }
+
       return workspace
     } catch (error) {
       console.log(error)
+      if (error instanceof TRPCError) {
+        throw error
+      }
       throw new TRPCError({
         code: 'INTERNAL_SERVER_ERROR',
         message: 'Something went wrong',

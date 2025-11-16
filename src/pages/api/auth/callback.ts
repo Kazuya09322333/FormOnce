@@ -37,8 +37,56 @@ export default async function handler(
       return res.redirect('/auth/signin?error=callback_failed')
     }
 
-    if (data.session) {
+    if (data.session && data.user) {
       console.log('[OAuth Callback] Session established successfully')
+
+      // Setup user in database (create User and Workspace if needed)
+      try {
+        const { prisma } = await import('~/server/db')
+
+        const existingUser = await prisma.user.findUnique({
+          where: { id: data.user.id },
+        })
+
+        if (!existingUser) {
+          console.log('[OAuth Callback] Creating user in database...')
+
+          const userName =
+            data.user.user_metadata?.name ||
+            data.user.user_metadata?.full_name ||
+            data.user.email?.split('@')[0] ||
+            'User'
+
+          await prisma.user.create({
+            data: {
+              id: data.user.id,
+              email: data.user.email!,
+              name: userName,
+              emailVerified: data.user.email_confirmed_at
+                ? new Date(data.user.email_confirmed_at)
+                : null,
+              WorkspaceMember: {
+                create: {
+                  role: 'OWNER',
+                  Workspace: {
+                    create: {
+                      name: `${userName}'s Workspace`,
+                      isPersonal: true,
+                    },
+                  },
+                },
+              },
+            },
+          })
+
+          console.log('[OAuth Callback] User created successfully')
+        } else {
+          console.log('[OAuth Callback] User already exists')
+        }
+      } catch (error) {
+        console.error('[OAuth Callback] Error setting up user:', error)
+        // Continue anyway - user might already exist
+      }
     }
   } else {
     console.log('[OAuth Callback] No code provided')

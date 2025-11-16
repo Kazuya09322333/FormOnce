@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import {
   type Form,
   type FormResponse,
@@ -7,6 +8,7 @@ import {
 } from '@prisma/client'
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
+import { getSupabaseAdmin } from '~/lib/supabase'
 import {
   createTRPCRouter,
   protectedProcedure,
@@ -38,24 +40,66 @@ export const formRouter = createTRPCRouter({
     .input(z.object({ workspaceId: z.string().optional() }))
     .query(async ({ ctx, input }) => {
       try {
-        return await ctx.prisma.form.findMany({
-          where: {
-            workspaceId: input.workspaceId ?? ctx.session?.user?.workspaceId,
-          },
-          include: {
-            author: {
-              select: {
-                name: true,
-                email: true,
-                id: true,
-              },
-            },
-            FormResponses: true,
-          },
-          orderBy: {
-            createdAt: 'desc',
-          },
-        })
+        const supabase = getSupabaseAdmin()
+
+        let workspaceId = input.workspaceId
+
+        // If workspaceId not provided, get it from user's workspace membership
+        if (!workspaceId) {
+          const { data: user, error: userError } = await supabase
+            .from('User')
+            .select('*, WorkspaceMember(Workspace(id))')
+            .eq('id', ctx.session.user.id)
+            .single()
+
+          type UserWithWorkspaceMembers = {
+            WorkspaceMember: Array<{ Workspace: { id: string } }>
+          }
+
+          if (userError || !user) {
+            console.log('User not found:', userError)
+            throw new TRPCError({
+              code: 'UNAUTHORIZED',
+              message: 'User not found',
+            })
+          }
+
+          const typedUser = user as UserWithWorkspaceMembers
+          if (
+            typedUser.WorkspaceMember &&
+            typedUser.WorkspaceMember.length > 0
+          ) {
+            workspaceId = typedUser.WorkspaceMember[0]!.Workspace.id
+          }
+        }
+
+        if (!workspaceId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Workspace ID is required',
+          })
+        }
+
+        const { data, error } = await supabase
+          .from('Form')
+          .select(
+            '*, author:User!authorId(name, email, id), FormResponses:FormResponse(*)',
+          )
+          .eq('workspaceId', workspaceId)
+          .order('createdAt', { ascending: false })
+
+        if (error) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Something went wrong',
+          })
+        }
+
+        return data as (Form & {
+          author?: { name: string | null; email: string; id: string } | null
+          FormResponses?: FormResponse[]
+        })[]
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -74,6 +118,8 @@ export const formRouter = createTRPCRouter({
     )
     .query(async ({ input, ctx }) => {
       try {
+        const supabase = getSupabaseAdmin()
+
         type TResponse = {
           form?: Form
           FormResponses?: (FormResponse & {
@@ -84,49 +130,68 @@ export const formRouter = createTRPCRouter({
 
         const response: TResponse = {}
 
-        const form = await ctx.prisma.form.findUniqueOrThrow({
-          where: {
-            id: input.id,
-            workspaceId: ctx.session?.user?.workspaceId,
-          },
-          include: {
-            author: {
-              select: {
-                name: true,
-                email: true,
-                id: true,
-              },
-            },
-          },
-        })
+        const workspaceId = ctx.session?.user?.workspaceId
 
-        response.form = form
+        if (!workspaceId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Workspace ID is required',
+          })
+        }
+
+        const { data: form, error: formError } = await supabase
+          .from('Form')
+          .select('*, author:User!authorId(name, email, id)')
+          .eq('id', input.id)
+          .eq('workspaceId', workspaceId)
+          .single()
+
+        if (formError || !form) {
+          console.log(formError)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Form not found',
+          })
+        }
+
+        response.form = form as Form
 
         if (input.includeResponses) {
-          const formResponses = await ctx.prisma.formResponse.findMany({
-            where: {
-              formId: input.id,
-            },
-            include: {
-              FormViews: true,
-            },
-            orderBy: {
-              completed: 'desc',
-            },
-          })
-          response.FormResponses = formResponses
+          const { data: formResponses, error: responsesError } = await supabase
+            .from('FormResponse')
+            .select('*, FormViews(*)')
+            .eq('formId', input.id)
+            .order('completed', { ascending: false })
+
+          if (responsesError) {
+            console.log(responsesError)
+            throw new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Failed to fetch responses',
+            })
+          }
+
+          response.FormResponses = formResponses as (FormResponse & {
+            FormViews: FormViews
+          })[]
         }
 
         if (input.includeViews) {
-          const formViews = await ctx.prisma.formViews.findMany({
-            where: {
-              formId: input.id,
-            },
-            orderBy: {
-              createdAt: 'desc',
-            },
-          })
-          response.FormViews = formViews
+          const { data: formViews, error: viewsError } = await supabase
+            .from('FormViews')
+            .select('*')
+            .eq('formId', input.id)
+            .order('createdAt', { ascending: false })
+
+          if (viewsError) {
+            console.log(viewsError)
+            throw new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Failed to fetch views',
+            })
+          }
+
+          response.FormViews = formViews as FormViews[]
         }
 
         return response
@@ -142,6 +207,8 @@ export const formRouter = createTRPCRouter({
     .input(ZCreateForm)
     .mutation(async ({ ctx, input }) => {
       try {
+        const supabase = getSupabaseAdmin()
+
         const formSchema: TFormSchema = {
           type: 'object',
           properties: {},
@@ -151,8 +218,8 @@ export const formRouter = createTRPCRouter({
         const questions: TQuestion[] = []
 
         input.questions.forEach((question, i) => {
-          // const questionId = crypto.randomUUID();
-          const questionId = question.title.toLowerCase().replace(/ /g, '_')
+          // generate unique ID for each question to prevent overwrites
+          const questionId = randomUUID()
           const jsonSchema = questionToJsonSchema(question)
 
           if (jsonSchema !== null) {
@@ -185,15 +252,147 @@ export const formRouter = createTRPCRouter({
           }
         })
 
-        return await ctx.prisma.form.create({
-          data: {
-            workspaceId: ctx.session.user.workspaceId!,
+        // Ensure user exists in database first
+        const { data: existingUser, error: userError } = await supabase
+          .from('User')
+          .select('*, WorkspaceMember(Workspace(id))')
+          .eq('id', ctx.session.user.id)
+          .single()
+
+        type UserWithWorkspaceMembers = {
+          WorkspaceMember: Array<{ Workspace: { id: string } }>
+        }
+
+        let workspaceId: string
+
+        if (userError && (userError as any).code === 'PGRST116') {
+          // User doesn't exist - create user and workspace together
+          const { data: newWorkspace, error: workspaceError } = await supabase
+            .from('Workspace')
+            .insert({
+              name: `${
+                ctx.session.user.name || ctx.session.user.email
+              }'s Workspace`,
+              isPersonal: true,
+            } as any)
+            .select('id')
+            .single()
+
+          if (workspaceError || !newWorkspace) {
+            console.log(workspaceError)
+            throw new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Failed to create workspace',
+            })
+          }
+
+          // @ts-expect-error - Supabase type inference issue
+          workspaceId = newWorkspace.id as string
+
+          const { error: newUserError } = await supabase.from('User').insert({
+            id: ctx.session.user.id,
+            email: ctx.session.user.email!,
+            name: ctx.session.user.name!,
+          } as any)
+
+          if (newUserError) {
+            console.log(newUserError)
+            throw new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Failed to create user',
+            })
+          }
+
+          const { error: memberError } = await supabase
+            .from('WorkspaceMember')
+            .insert({
+              userId: ctx.session.user.id,
+              workspaceId: workspaceId,
+              role: 'OWNER',
+            } as any)
+
+          if (memberError) {
+            console.log(memberError)
+            throw new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Failed to create workspace member',
+            })
+          }
+        } else if (
+          existingUser &&
+          (existingUser as UserWithWorkspaceMembers).WorkspaceMember &&
+          Array.isArray(
+            (existingUser as UserWithWorkspaceMembers).WorkspaceMember,
+          ) &&
+          (existingUser as UserWithWorkspaceMembers).WorkspaceMember.length > 0
+        ) {
+          // User exists and has workspace
+          workspaceId = (existingUser as UserWithWorkspaceMembers)
+            .WorkspaceMember[0]!.Workspace.id
+        } else {
+          // User exists but no workspace - create one
+          const { data: newWorkspace, error: workspaceError } = await supabase
+            .from('Workspace')
+            .insert({
+              name: `${
+                ctx.session.user.name || ctx.session.user.email
+              }'s Workspace`,
+              isPersonal: true,
+            } as any)
+            .select('id')
+            .single()
+
+          if (workspaceError || !newWorkspace) {
+            console.log(workspaceError)
+            throw new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Failed to create workspace',
+            })
+          }
+
+          // @ts-expect-error - Supabase type inference issue
+          workspaceId = newWorkspace.id as string
+
+          const { error: memberError } = await supabase
+            .from('WorkspaceMember')
+            .insert({
+              userId: ctx.session.user.id,
+              workspaceId: workspaceId,
+              role: 'OWNER',
+            } as any)
+
+          if (memberError) {
+            console.log(memberError)
+            throw new TRPCError({
+              code: 'INTERNAL_SERVER_ERROR',
+              message: 'Failed to create workspace member',
+            })
+          }
+        }
+
+        const { data: newForm, error: formError } = await supabase
+          .from('Form')
+          .insert({
+            id: randomUUID(),
+            workspaceId: workspaceId,
             authorId: ctx.session.user.id,
             name: input.name,
-            formSchema: formSchema as unknown as string,
-            questions: questions,
-          },
-        })
+            formSchema: formSchema as any,
+            questions: questions as any,
+            updatedAt: new Date().toISOString(),
+          } as any)
+          .select()
+          .single()
+
+        if (formError || !newForm) {
+          console.log(formError)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to create form',
+          })
+        }
+
+        return newForm as Form
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -207,16 +406,37 @@ export const formRouter = createTRPCRouter({
     .input(ZUpdateForm)
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.prisma.form.update({
-          where: {
-            id: input.id,
-          },
-          data: {
-            name: input.name,
-            formSchema: input.formSchema,
-            questions: input.questions,
-          },
-        })
+        const supabase = getSupabaseAdmin()
+
+        const updateData: {
+          name?: string
+          formSchema?: any
+          questions?: any
+        } = {}
+
+        if (input.name !== undefined) updateData.name = input.name
+        if (input.formSchema !== undefined)
+          updateData.formSchema = input.formSchema as any
+        if (input.questions !== undefined)
+          updateData.questions = input.questions as any
+
+        const { data, error } = await supabase
+          .from('Form')
+          // @ts-ignore - Supabase type inference issue
+          .update(updateData as any)
+          .eq('id', input.id)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to update form',
+          })
+        }
+
+        return data as Form
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -234,11 +454,24 @@ export const formRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        return await ctx.prisma.form.delete({
-          where: {
-            id: input.id,
-          },
-        })
+        const supabase = getSupabaseAdmin()
+
+        const { data, error } = await supabase
+          .from('Form')
+          .delete()
+          .eq('id', input.id)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to delete form',
+          })
+        }
+
+        return data as Form
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -252,28 +485,33 @@ export const formRouter = createTRPCRouter({
     .input(ZAddQuestion)
     .mutation(async ({ ctx, input }) => {
       try {
-        const form = await ctx.prisma.form.findUnique({
-          where: {
-            id: input.formId,
-          },
-        })
+        const supabase = getSupabaseAdmin()
 
-        if (!form) {
+        // Get form and verify ownership through authorId
+        const { data: form, error: formError } = await supabase
+          .from('Form')
+          .select('*')
+          .eq('id', input.formId)
+          .eq('authorId', ctx.session.user.id)
+          .single()
+
+        if (formError || !form) {
+          console.log(formError)
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
-            message: 'Form not found',
+            message:
+              'Form not found or you do not have permission to edit this form',
           })
         }
 
-        // generate a new question id
-        // const questionId = crypto.randomUUID();
-        const questionId = input.question.title.toLowerCase().replace(/ /g, '_')
+        // generate a new question id - use UUID to ensure uniqueness
+        const questionId = randomUUID()
 
         // 1. convert question to a jsonSchema object
         const jsonSchema = questionToJsonSchema(input.question)
 
         // 2. update formSchema & questions array
-        const questions = form.questions as TQuestion[]
+        const questions = (form as any).questions as TQuestion[]
 
         // 2.1 calculate the position of the new question
         const targetIdx = input.targetIdx ?? questions.length
@@ -319,9 +557,28 @@ export const formRouter = createTRPCRouter({
         if (input.sourceLogic) {
           for (const question of questions) {
             if (question.id === input.sourceLogic.questionId) {
+              console.log('[DEBUG] Source question found:', {
+                questionId: question.id,
+                questionType: question.type,
+                logicCount: question.logic?.length,
+                logic: question.logic,
+              })
+
               if (question.type === 'select') {
                 // remove the values that are in the sourceLogic from the existing logics
                 const updatedLogic: TLogic[] = question.logic!.flatMap((l) => {
+                  console.log('[DEBUG] Processing logic item:', {
+                    value: l.value,
+                    isArray: Array.isArray(l.value),
+                    valueType: typeof l.value,
+                  })
+
+                  // Check if value is an array before filtering
+                  if (!Array.isArray(l.value)) {
+                    // If it's not an array (text question), keep the logic as-is
+                    return l
+                  }
+
                   const exisitingValues = l.value as string[]
 
                   const newValues = exisitingValues.filter(
@@ -356,7 +613,7 @@ export const formRouter = createTRPCRouter({
           }
         }
 
-        const formSchema = form.formSchema as TFormSchema
+        const formSchema = (form as any).formSchema as TFormSchema
         if (jsonSchema !== null) {
           formSchema.properties = {
             ...formSchema.properties,
@@ -367,15 +624,32 @@ export const formRouter = createTRPCRouter({
         formSchema.required = [...formSchema.required, questionId]
 
         // 3. update the form with the new formSchema & updated questions
-        return await ctx.prisma.form.update({
-          where: {
-            id: input.formId,
-          },
-          data: {
-            formSchema: formSchema as unknown as string,
-            questions,
-          },
-        })
+        const updateData: {
+          formSchema?: any
+          questions?: any
+        } = {
+          formSchema: formSchema as any,
+          questions: questions as any,
+        }
+
+        const { data, error } = await supabase
+          .from('Form')
+          // @ts-ignore - Supabase type inference issue
+          .update(updateData as any)
+          .eq('id', input.formId)
+          .eq('authorId', ctx.session.user.id)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to update form',
+          })
+        }
+
+        return data as Form
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -389,14 +663,18 @@ export const formRouter = createTRPCRouter({
     .input(ZEditQuestion)
     .mutation(async ({ input, ctx }) => {
       try {
-        const form = await ctx.prisma.form.findUnique({
-          where: {
-            id: input.formId,
-            workspaceId: ctx.session?.user?.workspaceId,
-          },
-        })
+        const supabase = getSupabaseAdmin()
 
-        if (!form) {
+        // Get form and verify ownership through authorId instead of workspaceId
+        const { data: form, error: formError } = await supabase
+          .from('Form')
+          .select('*')
+          .eq('id', input.formId)
+          .eq('authorId', ctx.session.user.id)
+          .single()
+
+        if (formError || !form) {
+          console.log(formError)
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
             message:
@@ -404,7 +682,7 @@ export const formRouter = createTRPCRouter({
           })
         }
 
-        const questions = form.questions as TQuestion[]
+        const questions = (form as any).questions as TQuestion[]
         const questionIndex = questions.findIndex(
           (q) => q.id === input.question.id,
         )
@@ -423,7 +701,7 @@ export const formRouter = createTRPCRouter({
         }
 
         // update formSchema
-        const formSchema = form.formSchema as TFormSchema
+        const formSchema = (form as any).formSchema as TFormSchema
         const jsonSchema = questionToJsonSchema(input.question)
 
         if (jsonSchema !== null) {
@@ -438,15 +716,31 @@ export const formRouter = createTRPCRouter({
           )
         }
 
-        return await ctx.prisma.form.update({
-          where: {
-            id: input.formId,
-          },
-          data: {
-            questions,
-            formSchema: formSchema as unknown as string,
-          },
-        })
+        const updateData: {
+          questions?: any
+          formSchema?: any
+        } = {
+          questions: questions as any,
+          formSchema: formSchema as any,
+        }
+
+        const { data, error } = await supabase
+          .from('Form')
+          // @ts-ignore - Supabase type inference issue
+          .update(updateData as any)
+          .eq('id', input.formId)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to update form',
+          })
+        }
+
+        return data as Form
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -465,14 +759,26 @@ export const formRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        const form = await ctx.prisma.form.findUnique({
-          where: {
-            id: input.formId,
-            workspaceId: ctx.session?.user?.workspaceId,
-          },
-        })
+        const supabase = getSupabaseAdmin()
 
-        if (!form) {
+        const workspaceId = ctx.session?.user?.workspaceId
+
+        if (!workspaceId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Workspace ID is required',
+          })
+        }
+
+        const { data: form, error: formError } = await supabase
+          .from('Form')
+          .select('*')
+          .eq('id', input.formId)
+          .eq('workspaceId', workspaceId)
+          .single()
+
+        if (formError || !form) {
+          console.log(formError)
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
             message:
@@ -480,7 +786,7 @@ export const formRouter = createTRPCRouter({
           })
         }
 
-        const questions = form.questions as TQuestion[]
+        const questions = (form as any).questions as TQuestion[]
         const questionIndex = questions.findIndex(
           (q) => q.id === input.questionId,
         )
@@ -495,21 +801,37 @@ export const formRouter = createTRPCRouter({
 
         questions.splice(questionIndex, 1)
 
-        const formSchema = form.formSchema as TFormSchema
+        const formSchema = (form as any).formSchema as TFormSchema
         delete formSchema.properties![input.questionId]
         formSchema.required = formSchema.required.filter(
           (id) => id !== input.questionId,
         )
 
-        return await ctx.prisma.form.update({
-          where: {
-            id: input.formId,
-          },
-          data: {
-            questions,
-            formSchema: formSchema as unknown as string,
-          },
-        })
+        const updateData: {
+          questions?: any
+          formSchema?: any
+        } = {
+          questions: questions as any,
+          formSchema: formSchema as any,
+        }
+
+        const { data, error } = await supabase
+          .from('Form')
+          // @ts-ignore - Supabase type inference issue
+          .update(updateData as any)
+          .eq('id', input.formId)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to update form',
+          })
+        }
+
+        return data as Form
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -527,16 +849,34 @@ export const formRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       try {
+        const supabase = getSupabaseAdmin()
         const link = `https://formonce.in/forms/${input.id}`
-        return await ctx.prisma.form.update({
-          where: {
-            id: input.id,
-          },
-          data: {
-            status: 'PUBLISHED',
-            link: link,
-          },
-        })
+
+        const updateData: {
+          status?: string
+          link?: string
+        } = {
+          status: 'PUBLISHED',
+          link: link,
+        }
+
+        const { data, error } = await supabase
+          .from('Form')
+          // @ts-ignore - Supabase type inference issue
+          .update(updateData as any)
+          .eq('id', input.id)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to publish form',
+          })
+        }
+
+        return data as Form
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -553,14 +893,31 @@ export const formRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        return await ctx.prisma.form.update({
-          where: {
-            id: input.id,
-          },
-          data: {
-            status: 'DRAFT',
-          },
-        })
+        const supabase = getSupabaseAdmin()
+
+        const updateData: {
+          status?: string
+        } = {
+          status: 'DRAFT',
+        }
+
+        const { data, error } = await supabase
+          .from('Form')
+          // @ts-ignore - Supabase type inference issue
+          .update(updateData as any)
+          .eq('id', input.id)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to unpublish form',
+          })
+        }
+
+        return data as Form
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -580,19 +937,24 @@ export const formRouter = createTRPCRouter({
     )
     .query(async ({ input, ctx }) => {
       try {
-        const form = await ctx.prisma.form.findUnique({
-          where: {
-            id: input.id,
-            status: 'PUBLISHED',
-          },
-          select: {
-            formSchema: true,
-            questions: true,
-            name: true,
-          },
-        })
+        const supabase = getSupabaseAdmin()
 
-        let formView = undefined
+        const { data: form, error: formError } = await supabase
+          .from('Form')
+          .select('formSchema, questions, name')
+          .eq('id', input.id)
+          .eq('status', 'PUBLISHED')
+          .single()
+
+        if (formError) {
+          console.log(formError)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Form not found',
+          })
+        }
+
+        let formView: { id: string } | undefined = undefined
         if (input.increaseViewCount) {
           const ZIpSchema = z.string().ip()
 
@@ -603,13 +965,28 @@ export const formRouter = createTRPCRouter({
           const ip = parsedIp.success ? parsedIp.data : undefined
           const userAgent = ctx.req.headers['user-agent']
 
-          formView = await ctx.prisma.formViews.create({
-            data: {
-              formId: input.id,
-              ip: ip,
-              userAgent: userAgent,
-            },
-          })
+          const insertData: {
+            formId: string
+            ip?: string
+            userAgent?: string
+          } = {
+            formId: input.id,
+          }
+
+          if (ip) insertData.ip = ip
+          if (userAgent) insertData.userAgent = userAgent
+
+          const { data: newFormView, error: viewError } = await supabase
+            .from('FormViews')
+            .insert(insertData as any)
+            .select()
+            .single()
+
+          if (viewError) {
+            console.log(viewError)
+          } else if (newFormView) {
+            formView = newFormView as { id: string }
+          }
         }
 
         return { form, formViewId: formView?.id }
@@ -633,75 +1010,110 @@ export const formRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        const formresponse = await ctx.prisma.formResponse.create({
-          data: {
-            formId: input.formId,
-            response: input.response,
-            completed: new Date().toISOString(),
-            formViewsId: input.formViewId,
-          },
-          include: {
-            Forms: true,
-          },
-        })
+        const supabase = getSupabaseAdmin()
+
+        const insertData: {
+          formId: string
+          response: any
+          completed?: string
+          formViewsId: string
+        } = {
+          formId: input.formId,
+          response: input.response,
+          completed: new Date().toISOString(),
+          formViewsId: input.formViewId,
+        }
+
+        const { data: formresponse, error: responseError } = await supabase
+          .from('FormResponse')
+          .insert(insertData as any)
+          .select('*, Forms:Form!formId(*)')
+          .single()
+
+        if (responseError || !formresponse) {
+          console.log(responseError)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to submit response',
+          })
+        }
+
+        type FormResponseWithForm = typeof formresponse & {
+          completed: string | null
+          Forms: { name: string }
+        }
+
+        const typedFormResponse = formresponse as FormResponseWithForm
 
         // execute webhook
-        const webhooks = await ctx.prisma.webhook.findMany({
-          where: {
-            workspaceId: ctx.session?.user?.workspaceId,
-            enabled: true,
-            events: {
-              has: WebhookTriggerEvent.RESPONSE_SUBMITTED,
-            },
-          },
-        })
+        const workspaceId = ctx.session?.user?.workspaceId
+        if (workspaceId) {
+          const { data: webhooks, error: webhookError } = await supabase
+            .from('Webhook')
+            .select('*')
+            .eq('workspaceId', workspaceId)
+            .eq('enabled', true)
+            .contains('events', [WebhookTriggerEvent.RESPONSE_SUBMITTED])
 
-        if (webhooks.length > 0) {
-          const payload = {
-            form: formresponse.Forms.name,
-            formId: input.formId,
-            event: WebhookTriggerEvent.RESPONSE_SUBMITTED,
-            response: input.response,
-            submittedAt: formresponse.completed?.toISOString(),
+          if (webhookError) {
+            console.log(webhookError)
           }
-          webhooks.forEach(async (webhook) => {
-            const response = await fetch(webhook.url, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'X-FormOnce-Secret': webhook.secret,
-              },
-              body: JSON.stringify(payload),
-            })
 
-            if (response.ok) {
-              console.log('Webhook sent successfully')
-            } else {
-              console.log('Webhook failed to send')
+          if (webhooks && webhooks.length > 0) {
+            const payload = {
+              // @ts-ignore - Supabase type inference issue
+              form: typedFormResponse.Forms.name,
+              formId: input.formId,
+              event: WebhookTriggerEvent.RESPONSE_SUBMITTED,
+              response: input.response,
+              // @ts-ignore - Supabase type inference issue
+              submittedAt: typedFormResponse.completed,
             }
 
-            const responseText = await response.text()
-            let responseBody: Prisma.InputJsonValue
-
-            try {
-              responseBody = JSON.parse(responseText) as Prisma.InputJsonValue
-            } catch (error) {
-              responseBody = responseText
+            type WebhookType = {
+              id: string
+              url: string
+              secret: string
             }
 
-            // create WebhookRecord
-            await ctx.prisma.webhookRecord.create({
-              data: {
-                // formId: input.formId,
-                webhookId: webhook.id,
+            webhooks.forEach(async (webhook) => {
+              const typedWebhook = webhook as WebhookType
+              const response = await fetch(typedWebhook.url, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-FormOnce-Secret': typedWebhook.secret,
+                },
+                body: JSON.stringify(payload),
+              })
+
+              if (response.ok) {
+                console.log('Webhook sent successfully')
+              } else {
+                console.log('Webhook failed to send')
+              }
+
+              const responseText = await response.text()
+              let responseBody: Prisma.InputJsonValue
+
+              try {
+                responseBody = JSON.parse(responseText) as Prisma.InputJsonValue
+              } catch (error) {
+                responseBody = responseText
+              }
+
+              // create WebhookRecord
+              // @ts-ignore - Supabase type inference issue
+              await supabase.from('WebhookRecord').insert({
+                webhookId: typedWebhook.id,
                 event: WebhookTriggerEvent.RESPONSE_SUBMITTED,
                 payload: payload,
                 responseBody: responseBody,
                 responseStatus: response.status,
                 responseHeaders: Object.fromEntries(response.headers.entries()),
-              },
+              } as any)
             })
-          })
+          }
         }
 
         return formresponse
@@ -723,14 +1135,26 @@ export const formRouter = createTRPCRouter({
     )
     .mutation(async ({ input, ctx }) => {
       try {
-        const form = await ctx.prisma.form.findUnique({
-          where: {
-            id: input.formId,
-            workspaceId: ctx.session?.user?.workspaceId,
-          },
-        })
+        const supabase = getSupabaseAdmin()
 
-        if (!form) {
+        const workspaceId = ctx.session?.user?.workspaceId
+
+        if (!workspaceId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Workspace ID is required',
+          })
+        }
+
+        const { data: form, error: formError } = await supabase
+          .from('Form')
+          .select('*')
+          .eq('id', input.formId)
+          .eq('workspaceId', workspaceId)
+          .single()
+
+        if (formError || !form) {
+          console.log(formError)
           throw new TRPCError({
             code: 'INTERNAL_SERVER_ERROR',
             message:
@@ -738,7 +1162,7 @@ export const formRouter = createTRPCRouter({
           })
         }
 
-        const questions = form.questions as TQuestion[]
+        const questions = (form as any).questions as TQuestion[]
         const questionIndex = questions.findIndex(
           (q) => q.id === input.questionId,
         )
@@ -755,9 +1179,8 @@ export const formRouter = createTRPCRouter({
 
         const newTitle = `${question.title} (copy)`
 
-        // generate a new question id
-        // const newQuestionId = crypto.randomUUID();
-        const newQuestionId = newTitle.toLowerCase().replace(/ /g, '_')
+        // generate unique ID for the duplicated question to prevent overwrites
+        const newQuestionId = randomUUID()
 
         const newQuestion = {
           ...question,
@@ -771,7 +1194,7 @@ export const formRouter = createTRPCRouter({
 
         questions.splice(questionIndex + 1, 0, newQuestion)
 
-        const formSchema = form.formSchema as TFormSchema
+        const formSchema = (form as any).formSchema as TFormSchema
         const jsonSchema = questionToJsonSchema(question)
 
         if (jsonSchema !== null) {
@@ -783,15 +1206,102 @@ export const formRouter = createTRPCRouter({
 
         formSchema.required = [...formSchema.required, newQuestionId]
 
-        return await ctx.prisma.form.update({
-          where: {
-            id: input.formId,
-          },
-          data: {
-            questions,
-            formSchema: formSchema as unknown as string,
-          },
+        const updateData: {
+          questions?: any
+          formSchema?: any
+        } = {
+          questions: questions as any,
+          formSchema: formSchema as any,
+        }
+
+        const { data, error } = await supabase
+          .from('Form')
+          // @ts-ignore - Supabase type inference issue
+          .update(updateData as any)
+          .eq('id', input.formId)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to update form',
+          })
+        }
+
+        return data as Form
+      } catch (error) {
+        console.log(error)
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Something went wrong',
         })
+      }
+    }),
+  getAnalytics: protectedProcedure
+    .input(
+      z.object({
+        formId: z.string(),
+      }),
+    )
+    .query(async ({ input, ctx }) => {
+      try {
+        const supabase = getSupabaseAdmin()
+        const workspaceId = ctx.session?.user?.workspaceId
+
+        if (!workspaceId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Workspace ID is required',
+          })
+        }
+
+        // フォームの存在確認
+        const { data: form, error: formError } = await supabase
+          .from('Form')
+          .select('id')
+          .eq('id', input.formId)
+          .eq('workspaceId', workspaceId)
+          .single()
+
+        if (formError || !form) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Form not found',
+          })
+        }
+
+        // ビュー数を取得
+        const { data: views, error: viewsError } = await supabase
+          .from('FormViews')
+          .select('*')
+          .eq('formId', input.formId)
+
+        if (viewsError) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to fetch views',
+          })
+        }
+
+        // 回答を取得
+        const { data: responses, error: responsesError } = await supabase
+          .from('FormResponse')
+          .select('*')
+          .eq('formId', input.formId)
+
+        if (responsesError) {
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'Failed to fetch responses',
+          })
+        }
+
+        return {
+          views: views as FormViews[],
+          responses: responses as FormResponse[],
+        }
       } catch (error) {
         console.log(error)
         throw new TRPCError({

@@ -92,7 +92,8 @@ export function TeamSwitcher({ className }: TeamSwitcherProps) {
     api.workspace.getAll.useQuery(undefined, {
       refetchOnMount: false,
       refetchOnWindowFocus: false,
-    })
+      refetchOnReconnect: false,
+    }) as { data: Workspace[] | undefined; refetch: () => Promise<any> }
 
   const addWorkspace = api.workspace.create.useMutation()
 
@@ -106,7 +107,12 @@ export function TeamSwitcher({ className }: TeamSwitcherProps) {
 
   const groups = React.useMemo(() => getGroups(workspaces), [workspaces])
 
+  const [hasInitialized, setHasInitialized] = React.useState(false)
+
   React.useEffect(() => {
+    // Only run once when workspaces are loaded
+    if (!workspaces || workspaces.length === 0 || hasInitialized) return
+
     // Get workspaceId from user metadata if it exists
     const userWorkspaceId = user?.user_metadata?.workspaceId
 
@@ -114,15 +120,32 @@ export function TeamSwitcher({ className }: TeamSwitcherProps) {
       const workspace = workspaces?.find(
         (workspace) => workspace.id === userWorkspaceId,
       )
-      setSelectedWorkspace({
-        name: workspace?.isPersonal ? 'Personal' : workspace?.name ?? '',
-        id: workspace?.id ?? '',
-      })
+      if (workspace) {
+        setSelectedWorkspace({
+          name: workspace?.isPersonal ? 'Personal' : workspace?.name ?? '',
+          id: workspace?.id ?? '',
+        })
+        setHasInitialized(true)
+      }
     } else {
-      const defaultWorkspace = groups[0]?.teams[0]!
-      if (defaultWorkspace) void handleUpdateWorkspace(defaultWorkspace)
+      const defaultWorkspace = groups[0]?.teams[0]
+      if (defaultWorkspace) {
+        setSelectedWorkspace(defaultWorkspace)
+        setHasInitialized(true)
+
+        // Update workspaceId in user metadata
+        if (user) {
+          supabase.auth
+            .updateUser({
+              data: {
+                workspaceId: defaultWorkspace.id,
+              },
+            })
+            .catch(console.error)
+        }
+      }
     }
-  }, [groups, user])
+  }, [workspaces?.length, hasInitialized])
 
   const handleUpdateWorkspace = async (team: Team) => {
     setSelectedWorkspace(team)

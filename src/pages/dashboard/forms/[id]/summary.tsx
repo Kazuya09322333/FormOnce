@@ -17,6 +17,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { DateRange } from 'react-day-picker'
 import { toast } from 'sonner'
 import { CalendarDateRangePicker } from '~/components/date-range-picker'
+import { AnalyticsDashboard } from '~/components/form-builder/analytics-dashboard'
 import { ShareDialog } from '~/components/form-builder/share-dialog'
 import OverViewChart from '~/components/responses/overview-chart'
 import ResponsesTable from '~/components/responses/responses-table'
@@ -268,14 +269,21 @@ export default function Summary(props: TProps) {
         </div>
         <div className="my-4 px-4">
           {formData?.FormResponses && formData.FormViews ? (
-            <Tabs defaultValue="overview" className="">
+            <Tabs defaultValue="analytics" className="">
               <div className="flex justify-between">
                 <TabsList>
+                  <TabsTrigger value="analytics">アナリティクス</TabsTrigger>
                   <TabsTrigger value="overview">概要</TabsTrigger>
                   <TabsTrigger value="responses">回答一覧</TabsTrigger>
                 </TabsList>
                 <CalendarDateRangePicker onChange={setDateRange} />
               </div>
+              <TabsContent value="analytics" className="mr-14 py-6">
+                <AnalyticsDashboard
+                  views={formData?.FormViews ?? []}
+                  responses={formData?.FormResponses ?? []}
+                />
+              </TabsContent>
               <TabsContent value="overview" className="mr-14 py-6">
                 <OverViewChart
                   formViews={formData?.FormViews}
@@ -308,7 +316,7 @@ export default function Summary(props: TProps) {
   )
 }
 
-export const getServerSideProps: GetServerSideProps = (ctx) => {
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
   return {
     props: {
       formId: ctx.query.id,

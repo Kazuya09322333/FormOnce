@@ -6,7 +6,7 @@ await import("./src/env.mjs");
 
 /** @type {import("next").NextConfig} */
 const config = {
-    reactStrictMode: true,
+    reactStrictMode: false,
     eslint: {
         ignoreDuringBuilds: true,
     },
@@ -28,6 +28,42 @@ const config = {
                 pathname: '/**',
             },
         ],
+    },
+    async headers() {
+        return [
+            {
+                // Allow forms to be embedded in iframes
+                source: '/forms/:path*',
+                headers: [
+                    {
+                        key: 'Content-Security-Policy',
+                        value: "frame-ancestors 'self' *",
+                    },
+                ],
+            },
+            {
+                // Allow API calls from iframes
+                source: '/api/:path*',
+                headers: [
+                    {
+                        key: 'Access-Control-Allow-Credentials',
+                        value: 'true',
+                    },
+                    {
+                        key: 'Access-Control-Allow-Origin',
+                        value: '*',
+                    },
+                    {
+                        key: 'Access-Control-Allow-Methods',
+                        value: 'GET,POST,PUT,DELETE,OPTIONS',
+                    },
+                    {
+                        key: 'Access-Control-Allow-Headers',
+                        value: 'Content-Type, Authorization',
+                    },
+                ],
+            },
+        ];
     },
 };
 

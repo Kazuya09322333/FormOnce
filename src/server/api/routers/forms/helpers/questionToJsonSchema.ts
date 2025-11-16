@@ -1,4 +1,5 @@
 import type {
+  TCTAButtonQuestion,
   TQuestion,
   TSelectQuestion,
   TTextQuestion,
@@ -12,6 +13,8 @@ export const questionToJsonSchema = (question: TQuestion) => {
       return textQuestionToJsonSchema(question)
     case 'select':
       return selectQuestionToJsonSchema(question)
+    case 'cta_button':
+      return ctaButtonQuestionToJsonSchema(question)
     default:
       return null
   }
@@ -107,4 +110,10 @@ const selectQuestionToJsonSchema = (question: TSelectQuestion) => {
     default:
       return null
   }
+}
+
+const ctaButtonQuestionToJsonSchema = (question: TCTAButtonQuestion) => {
+  // CTA buttons don't require user input, so we return null for schema
+  // They are action buttons that navigate or redirect
+  return null
 }

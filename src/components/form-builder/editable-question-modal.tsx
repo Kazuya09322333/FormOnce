@@ -1,9 +1,16 @@
 'use client'
 
 import React from 'react'
-import { EQuestionType, type TQuestion } from '~/types/question.types'
+import {
+  EQuestionType,
+  type TCTAButtonQuestion,
+  type TQuestion,
+  type TSelectQuestion,
+  type TTextQuestion,
+} from '~/types/question.types'
 
 import { Dialog, DialogContent } from '@components/ui'
+import { CTAButtonForm } from './cta-button-form'
 import { SelectQuestionForm } from './select-question-form'
 import { TextQuestionForm } from './text-question-form'
 
@@ -34,13 +41,23 @@ const EditableQuestionDialog = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         {question.type === EQuestionType.Text && (
-          <TextQuestionForm onEdit={onEditQuestion} mode="edit" {...question} />
+          <TextQuestionForm
+            onEdit={onEditQuestion}
+            mode="edit"
+            {...(question as TTextQuestion)}
+          />
         )}
         {question.type === EQuestionType.Select && (
           <SelectQuestionForm
             onEdit={onEditQuestion}
             mode="edit"
-            {...question}
+            {...(question as TSelectQuestion)}
+          />
+        )}
+        {question.type === EQuestionType.CTAButton && (
+          <CTAButtonForm
+            onSubmit={onEditQuestion}
+            defaultValues={question as TCTAButtonQuestion}
           />
         )}
       </DialogContent>

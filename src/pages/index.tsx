@@ -656,7 +656,7 @@ export default function Home({ id }: { id: string }) {
                         key={i}
                         className={cn(
                           'h-5 w-5',
-                          i < testimonials[currentTestimonial].rating
+                          i < (testimonials[currentTestimonial]?.rating ?? 0)
                             ? 'fill-yellow-400 text-yellow-400'
                             : 'fill-gray-300 text-gray-300',
                         )}
@@ -665,23 +665,23 @@ export default function Home({ id }: { id: string }) {
                   </div>
 
                   <blockquote className="text-lg text-gray-700 dark:text-gray-300 mb-6">
-                    "{testimonials[currentTestimonial].content}"
+                    "{testimonials[currentTestimonial]?.content ?? ''}"
                   </blockquote>
 
                   <div className="flex items-center gap-4">
                     <Image
-                      src={testimonials[currentTestimonial].avatar}
-                      alt={testimonials[currentTestimonial].name}
+                      src={testimonials[currentTestimonial]?.avatar ?? ''}
+                      alt={testimonials[currentTestimonial]?.name ?? ''}
                       width={48}
                       height={48}
                       className="rounded-full"
                     />
                     <div>
                       <cite className="not-italic font-semibold text-gray-900 dark:text-gray-100">
-                        {testimonials[currentTestimonial].name}
+                        {testimonials[currentTestimonial]?.name ?? ''}
                       </cite>
                       <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {testimonials[currentTestimonial].role}
+                        {testimonials[currentTestimonial]?.role ?? ''}
                       </p>
                     </div>
                   </div>

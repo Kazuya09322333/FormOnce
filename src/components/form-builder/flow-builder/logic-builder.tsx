@@ -125,7 +125,9 @@ const TextQuestionLogicBuilder = ({
                           }`}
                         >
                           <div className="flex gap-2 items-center">
-                            <span>Always</span>
+                            <span className="font-medium">
+                              常にこの質問へ移動
+                            </span>
                           </div>
                           <Checkbox
                             className={`h-6 w-6 data-[state=checked]:border-violet-600 data-[state=checked]:bg-violet-600 data-[state=checked]:text-primary`}
@@ -145,7 +147,7 @@ const TextQuestionLogicBuilder = ({
             />
             <div className="flex items-center gap-2 w-full">
               <div className="border border-secondary w-full" />
-              <span className="border-primary">or</span>
+              <span className="border-primary text-gray-500">または</span>
               <div className="border border-secondary w-full" />
             </div>
 
@@ -156,9 +158,9 @@ const TextQuestionLogicBuilder = ({
             >
               <CollapsibleTrigger>
                 <div className="flex items-center gap-1 relative cursor-not-allowed">
-                  <span className="text">Advanced conditionals</span>
+                  <span className="text font-medium">高度な条件設定</span>
                   <span className="text-xs text-blue-400 absolute top-5 left-0">
-                    (coming soon)
+                    (近日公開)
                   </span>
                   <ChevronRight
                     className={`h-5 w-5 mt-0.5 transition ${
@@ -168,7 +170,7 @@ const TextQuestionLogicBuilder = ({
                 </div>
               </CollapsibleTrigger>
               <CollapsibleContent className="p-6 text-center">
-                <p className="text-lg text-secondary">Coming soon</p>
+                <p className="text-lg text-secondary">近日公開予定</p>
               </CollapsibleContent>
             </Collapsible>
           </div>
@@ -179,7 +181,7 @@ const TextQuestionLogicBuilder = ({
               size={'lg'}
               className="w-full"
             >
-              Continue <MoveRight className="ml-2" />
+              設定を完了 <MoveRight className="ml-2" />
             </Button>
           </div>
         </form>
@@ -223,11 +225,10 @@ const SelectQuestionLogicBuilder = ({
 
   const onError = (err: FieldErrors<z.infer<typeof FormSchema>>) => {
     if (form.getValues('value').length === 0) {
-      toast.error('Please select at least one option')
+      toast.error('少なくとも1つの選択肢を選んでください')
     } else {
-      toast.error('Something went wrong', {
-        description:
-          'We know this is not ideal, contact ksushant6566@gmail.com if the issue persists',
+      toast.error('エラーが発生しました', {
+        description: '問題が解決しない場合は、サポートまでお問い合わせください',
         duration: 10000,
       })
     }
@@ -298,7 +299,7 @@ const SelectQuestionLogicBuilder = ({
               size={'lg'}
               className="w-full"
             >
-              Continue <MoveRight className="ml-2" />
+              設定を完了 <MoveRight className="ml-2" />
             </Button>
           </div>
         </form>

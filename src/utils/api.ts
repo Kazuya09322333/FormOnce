@@ -40,14 +40,24 @@ export const api = createTRPCNext<AppRouter>({
         }),
         httpBatchLink({
           url: `${getBaseUrl()}/api/trpc`,
-          headers() {
-            return {
-              // This ensures cookies are sent with the request
-              cookie: typeof window !== 'undefined' ? document.cookie : '',
-            }
-          },
         }),
       ],
+      /**
+       * React Query options to prevent infinite refetching
+       *
+       * @see https://tanstack.com/query/v4/docs/react/guides/important-defaults
+       */
+      queryClientConfig: {
+        defaultOptions: {
+          queries: {
+            refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
+            refetchOnMount: false,
+            retry: 1,
+            staleTime: 5 * 60 * 1000, // 5 minutes
+          },
+        },
+      },
     }
   },
   /**

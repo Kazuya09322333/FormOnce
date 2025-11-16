@@ -51,7 +51,7 @@ export function AddApiKeyDialog({ disabled, ...props }: TAddApiKeyDialogProps) {
 
   const onSubmit = async (values: TAddApiKeyForm) => {
     try {
-      const generatedKey = await createApiKey(values)
+      const generatedKey = (await createApiKey(values)) as { key: string }
       toast.success('Api Key created successfully', {
         duration: 3000,
         position: 'top-center',

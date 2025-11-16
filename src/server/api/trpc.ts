@@ -7,12 +7,13 @@
  * need to use are documented accordingly near the end.
  */
 
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
+import { type CookieOptions, createServerClient } from '@supabase/ssr'
 import { TRPCError, initTRPC } from '@trpc/server'
 import { type CreateNextContextOptions } from '@trpc/server/adapters/next'
-import type { NextApiRequest } from 'next'
+import type { NextApiRequest, NextApiResponse } from 'next'
 import superjson from 'superjson'
 import { ZodError } from 'zod'
+import { getSupabaseAdmin } from '~/lib/supabase'
 import { prisma } from '~/server/db'
 
 /**
@@ -36,6 +37,7 @@ interface SupabaseSession {
 interface CreateContextOptions {
   session: SupabaseSession | null
   req: NextApiRequest
+  res: NextApiResponse
 }
 
 /**
@@ -53,6 +55,7 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
     session: opts.session,
     prisma,
     req: opts.req,
+    res: opts.res,
   }
 }
 
@@ -65,34 +68,74 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
 export const createTRPCContext = async (opts: CreateNextContextOptions) => {
   const { req, res } = opts
 
-  // Get the session from Supabase Auth
-  const supabase = createPagesServerClient({ req, res })
+  // Get the session from Supabase Auth using SSR
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies[name]
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          res.setHeader(
+            'Set-Cookie',
+            `${name}=${value}; Path=/; ${
+              options.maxAge ? `Max-Age=${options.maxAge};` : ''
+            } ${options.httpOnly ? 'HttpOnly;' : ''} ${
+              options.secure ? 'Secure;' : ''
+            } ${options.sameSite ? `SameSite=${options.sameSite};` : ''}`,
+          )
+        },
+        remove(name: string, options: CookieOptions) {
+          res.setHeader(
+            'Set-Cookie',
+            `${name}=; Path=/; Max-Age=0; ${
+              options.httpOnly ? 'HttpOnly;' : ''
+            } ${options.secure ? 'Secure;' : ''} ${
+              options.sameSite ? `SameSite=${options.sameSite};` : ''
+            }`,
+          )
+        },
+      },
+    },
+  )
 
+  // First try to get session (includes refresh if needed)
   const {
-    data: { user },
-  } = await supabase.auth.getUser()
+    data: { session: authSession },
+    error: sessionError,
+  } = await supabase.auth.getSession()
+
+  if (sessionError) {
+    console.error('[tRPC Context] Session error:', sessionError.message)
+  }
+
+  const user = authSession?.user
+
+  // Log which endpoint is being called
+  const path = req.url || 'unknown'
+  console.log('[tRPC] Request to:', path)
 
   let session: SupabaseSession | null = null
 
   if (user) {
-    // Get user's default workspace from database
-    const dbUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        WorkspaceMember: {
-          select: {
-            Workspace: {
-              select: {
-                id: true,
-              },
-            },
-          },
-          take: 1,
-        },
-      },
-    })
+    // Get user's default workspace from database using Supabase
+    const supabaseAdmin = getSupabaseAdmin()
+    const { data: workspaceMember } = await supabaseAdmin
+      .from('WorkspaceMember')
+      .select('Workspace(id)')
+      .eq('userId', user.id)
+      .limit(1)
+      .single()
 
-    const defaultWorkspaceId = dbUser?.WorkspaceMember[0]?.Workspace.id
+    type WorkspaceMemberType = {
+      Workspace: { id: string }
+    }
+
+    const defaultWorkspaceId = workspaceMember
+      ? (workspaceMember as WorkspaceMemberType).Workspace?.id
+      : undefined
 
     session = {
       user: {
@@ -110,6 +153,7 @@ export const createTRPCContext = async (opts: CreateNextContextOptions) => {
   return createInnerTRPCContext({
     session,
     req,
+    res,
   })
 }
 

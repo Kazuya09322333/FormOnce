@@ -176,14 +176,15 @@ model ApiKey {
 }
 
 model Video {
-  id        String      @id @default(uuid())
-  title     String
-  filePath  String
-  url       String
-  userId    String
-  status    VideoStatus @default(PROCESSING)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id           String      @id @default(uuid())
+  title        String
+  filePath     String
+  url          String
+  thumbnailUrl String?
+  userId       String
+  status       VideoStatus @default(PROCESSING)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 }
 
 enum FormStatus {

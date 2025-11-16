@@ -1,9 +1,10 @@
+import { Check } from 'lucide-react'
 import React from 'react'
 import type { TFormSchema } from '~/types/form.types'
 import type { TQuestion } from '~/types/question.types'
 
 import { api } from '~/utils/api'
-import FormRenderer from './form-renderer'
+import VideoAskRenderer from './videoask-renderer'
 
 type TLiveFormProps = {
   formId: string
@@ -39,25 +40,30 @@ function LiveForm({
 
   if (formSubmitted) {
     return (
-      <div className="flex flex-col items-center gap-2 px-2">
-        <div className="text text-4xl font-bold">Form submitted 🎉</div>
-        <div className="text text-lg font-thin text-center">
-          Your response has been submitted successfully.
+      <div className="fixed inset-0 bg-gradient-to-br from-violet-900 via-purple-900 to-black flex items-center justify-center">
+        <div className="text-center px-6 space-y-6 animate-in fade-in zoom-in duration-500">
+          <div className="w-24 h-24 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-6 animate-in zoom-in duration-300 delay-150">
+            <Check className="w-16 h-16 text-white" strokeWidth={3} />
+          </div>
+          <div className="text-white text-5xl font-bold animate-in slide-in-from-bottom-4 duration-500 delay-300">
+            送信完了！
+          </div>
+          <div className="text-gray-300 text-xl font-light animate-in slide-in-from-bottom-4 duration-500 delay-500">
+            ご回答ありがとうございました
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="rounded-md border px-8 py-16">
-      <FormRenderer
-        formSchema={formSchema}
-        questions={questions}
-        onNext={onNext}
-        onPrev={onPrev}
-        onSubmit={onSubmit}
-      />
-    </div>
+    <VideoAskRenderer
+      formSchema={formSchema}
+      questions={questions}
+      onNext={onNext}
+      onPrev={onPrev}
+      onSubmit={onSubmit}
+    />
   )
 }
 

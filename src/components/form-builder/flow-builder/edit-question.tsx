@@ -1,5 +1,6 @@
 import {
   Button,
+  Icons,
   Input,
   Popover,
   PopoverContent,
@@ -19,7 +20,12 @@ import {
 import { Copy, Trash, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Edge, Node, useReactFlow } from 'reactflow'
-import { ELogicCondition, TLogic, TQuestion } from '~/types/question.types'
+import {
+  ELogicCondition,
+  EQuestionType,
+  TLogic,
+  TQuestion,
+} from '~/types/question.types'
 
 const getConditionsfromLogic = (logics: TLogic[]) => {
   const conditions: TConditions = {}
@@ -81,7 +87,7 @@ const getLogicFromConditions = (conditions: TConditions): TLogic[] => {
 
 export type EditQuestionProps = {
   isOpen: boolean
-  onEdit: (values: TQuestion) => void
+  onEdit: (values: Partial<TQuestion>) => Promise<void>
   onDelete: () => Promise<void>
   onDuplicate: () => Promise<void>
   onClose: () => void
@@ -102,6 +108,7 @@ export const EditQuestion = ({
   isOpen,
   onClose,
   editingNode,
+  onEdit,
   onUpdateLogic,
   onDelete,
   onDuplicate,
@@ -112,6 +119,13 @@ export const EditQuestion = ({
   //   Condtions are logic conditions that are used to determine the next step in the flow depending on the answer to a question.
   const [conditions, setConditions] = useState<TConditions | null>(null)
 
+  // メモリに保存する一時的なデータ
+  const [tempVideoUrl, setTempVideoUrl] = useState<string>('')
+  const [tempQuestionData, setTempQuestionData] = useState<Partial<TQuestion>>(
+    {},
+  )
+  const [tempOptions, setTempOptions] = useState<string[]>([])
+
   const [isSaveLoading, setIsSaveLoading] = useState(false)
   const [isDeleteLoading, setIsDeleteLoading] = useState(false)
   const [isDuplicateLoading, setIsDuplicateLoading] = useState(false)
@@ -121,6 +135,20 @@ export const EditQuestion = ({
     const logics = editingNode.data.question.logic ?? []
     const updateConditions = getConditionsfromLogic(logics)
     setConditions(updateConditions)
+
+    // 既存のデータをメモリに読み込む
+    setTempVideoUrl(editingNode.data.question.videoUrl || '')
+    setTempQuestionData({
+      title: editingNode.data.question.title,
+      description: editingNode.data.question.description,
+      placeholder: editingNode.data.question.placeholder,
+    })
+    // 選択肢がある場合は読み込む
+    if (editingNode.data.question.type === EQuestionType.Select) {
+      setTempOptions(editingNode.data.question.options)
+    } else {
+      setTempOptions([])
+    }
   }, [editingNode])
 
   if (!editingNode) {
@@ -131,6 +159,9 @@ export const EditQuestion = ({
     if (!isOpen) {
       onClose()
       setConditions({})
+      setTempVideoUrl('')
+      setTempQuestionData({})
+      setTempOptions([])
     }
   }
 
@@ -153,15 +184,67 @@ export const EditQuestion = ({
     return [labelA, node.data.label.split('.')[1]]
   }
 
-  const saveConditions = async () => {
+  // 全てのタブのデータを保存する関数
+  const saveAll = async () => {
     if (!editingNode || !conditions) return
     setIsSaveLoading(true)
 
-    const logics = getLogicFromConditions(conditions)
-    await onUpdateLogic(logics)
+    try {
+      // 1. ロジックを保存
+      const logics = getLogicFromConditions(conditions)
+      await onUpdateLogic(logics)
 
-    setIsSaveLoading(false)
-    onOpenChange(false)
+      // 2. 質問データと動画URLを保存
+      const updatedData: any = {}
+
+      if (
+        tempQuestionData.title !== undefined &&
+        tempQuestionData.title !== editingNode.data.question.title
+      ) {
+        updatedData.title = tempQuestionData.title
+      }
+      if (
+        tempQuestionData.description !== undefined &&
+        tempQuestionData.description !== editingNode.data.question.description
+      ) {
+        updatedData.description = tempQuestionData.description
+      }
+      if (
+        tempQuestionData.placeholder !== undefined &&
+        tempQuestionData.placeholder !== editingNode.data.question.placeholder
+      ) {
+        updatedData.placeholder = tempQuestionData.placeholder
+      }
+      if (tempVideoUrl !== editingNode.data.question.videoUrl) {
+        updatedData.videoUrl = tempVideoUrl
+      }
+      // 選択式質問の場合は選択肢も保存
+      if (
+        editingNode.data.question.type === EQuestionType.Select &&
+        tempOptions.length > 0
+      ) {
+        const currentOptions = editingNode.data.question.options
+        const optionsChanged =
+          JSON.stringify(tempOptions) !== JSON.stringify(currentOptions)
+        if (optionsChanged) {
+          updatedData.options = tempOptions
+        }
+      }
+
+      // 変更があれば保存
+      if (Object.keys(updatedData).length > 0) {
+        await onEdit({
+          ...updatedData,
+          id: editingNode.data.question.id,
+        })
+      }
+
+      setIsSaveLoading(false)
+      onOpenChange(false)
+    } catch (error) {
+      console.error('保存エラー:', error)
+      setIsSaveLoading(false)
+    }
   }
 
   const handleDelete = async () => {
@@ -226,29 +309,172 @@ export const EditQuestion = ({
         <div className="h-full">
           <Tabs defaultValue={defaultMode ?? 'logic'}>
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="video">Video</TabsTrigger>
-              <TabsTrigger value="answer">Answer</TabsTrigger>
-              <TabsTrigger value="logic">Logic</TabsTrigger>
+              <TabsTrigger value="video">動画</TabsTrigger>
+              <TabsTrigger value="answer">答える</TabsTrigger>
+              <TabsTrigger value="logic">論理</TabsTrigger>
             </TabsList>
             <TabsContent value="video" className="flex flex-col gap-4">
-              <Input
-                type="url"
-                width={'full'}
-                label="Add your video URL here"
-              />
+              <div className="space-y-2">
+                <label className="text-sm font-medium">動画URL</label>
+                <Input
+                  type="url"
+                  value={tempVideoUrl}
+                  onChange={(e) => setTempVideoUrl(e.target.value)}
+                  placeholder="動画のURLを入力してください"
+                />
+                {tempVideoUrl && (
+                  <p className="text-xs text-muted-foreground">
+                    ✓ 動画URLが保存されています（「完成です」で確定）
+                  </p>
+                )}
+              </div>
             </TabsContent>
-            <TabsContent value="answer" className="flex flex-col gap-4">
-              How would you like to ask this question?
+            <TabsContent
+              value="answer"
+              className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto"
+            >
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">質問タイトル</label>
+                  <Input
+                    type="text"
+                    value={tempQuestionData.title || ''}
+                    onChange={(e) =>
+                      setTempQuestionData({
+                        ...tempQuestionData,
+                        title: e.target.value,
+                      })
+                    }
+                    placeholder="質問のタイトルを入力"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">質問の説明</label>
+                  <Input
+                    type="text"
+                    value={tempQuestionData.description || ''}
+                    onChange={(e) =>
+                      setTempQuestionData({
+                        ...tempQuestionData,
+                        description: e.target.value,
+                      })
+                    }
+                    placeholder="質問の説明を入力"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    プレースホルダー
+                  </label>
+                  <Input
+                    type="text"
+                    value={tempQuestionData.placeholder || ''}
+                    onChange={(e) =>
+                      setTempQuestionData({
+                        ...tempQuestionData,
+                        placeholder: e.target.value,
+                      })
+                    }
+                    placeholder="入力欄のヒントテキスト"
+                  />
+                </div>
+
+                {(tempQuestionData.title ||
+                  tempQuestionData.description ||
+                  tempQuestionData.placeholder) && (
+                  <p className="text-xs text-muted-foreground">
+                    ✓ 質問データが保存されています（「完成です」で確定）
+                  </p>
+                )}
+              </div>
             </TabsContent>
-            <TabsContent value="logic" className="flex flex-col gap-3">
-              {conditions &&
+            <TabsContent
+              value="logic"
+              className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto"
+            >
+              {editingNode.data.question.type === EQuestionType.Select &&
+              tempOptions.length > 0 ? (
+                <>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    各選択肢をクリックして次の質問を設定してください
+                  </p>
+                  {tempOptions.map((option, index) => {
+                    const optionKey = String.fromCharCode(65 + index)
+                    const condition = conditions?.[optionKey]
+                    return (
+                      <Popover key={index}>
+                        <PopoverTrigger asChild>
+                          <div className="flex justify-between items-center border py-2 px-4 rounded-md cursor-pointer hover:bg-primary-foreground hover:border-violet-600">
+                            <div className="flex gap-4 items-center text-sm">
+                              <div className="border py-1.5 px-2 rounded-md overflow-hidden text-ellipsis whitespace-nowrap">
+                                <span className="bg-violet-600 text-primary p-0.5 px-2 rounded-sm">
+                                  {optionKey}
+                                </span>
+                                <span className="ml-2 text-xs overflow-hidden text-ellipsis whitespace-nowrap">
+                                  {option}
+                                </span>
+                              </div>
+                              <span>→</span>
+                            </div>
+                            <span className="overflow-hidden text-ellipsis whitespace-nowrap bg-violet-600 text-sm p-0.5 px-2 rounded-full">
+                              {condition
+                                ? getNodeLabelFromId(condition.skipTo)[0]
+                                : '未設定'}
+                            </span>
+                          </div>
+                        </PopoverTrigger>
+                        <PopoverContent className="flex flex-col gap-2">
+                          <p className="text-xs text-secondary-foreground opacity-75">
+                            遷移先を選択...
+                          </p>
+                          <div>
+                            {reactFlowInstance.getNodes().map((node) => {
+                              if (
+                                node.id === editingNode.id ||
+                                node.id === 'start'
+                              )
+                                return null
+
+                              const [id, label] = getNodeLabelFromId(node.id)
+                              return (
+                                <div
+                                  key={node.id}
+                                  className={`flex items-center gap-2 border border-black py-2 px-4 rounded-md cursor-pointer text-sm hover:bg-primary-foreground hover:border-violet-600 ${
+                                    node.id === condition?.skipTo &&
+                                    '!border-violet-600 text-primary'
+                                  }`}
+                                  onClick={() => {
+                                    const updatedConditions = {
+                                      ...conditions,
+                                      [optionKey]: {
+                                        option,
+                                        skipTo: node.id,
+                                        condition: ELogicCondition.IS,
+                                      },
+                                    }
+                                    setConditions(updatedConditions)
+                                  }}
+                                >
+                                  <span className="bg-violet-600 text-primary p-0.5 px-2 rounded-sm">
+                                    {id}
+                                  </span>
+                                  <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+                                    {label}
+                                  </span>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )
+                  })}
+                </>
+              ) : conditions && Object.entries(conditions).length > 0 ? (
                 Object.entries(conditions).map(([key, condition]) => (
-                  <Popover>
+                  <Popover key={key}>
                     <PopoverTrigger asChild>
-                      <div
-                        key={key}
-                        className="flex justify-between items-center border py-2 px-4 rounded-md cursor-pointer hover:bg-primary-foreground hover:border-violet-600"
-                      >
+                      <div className="flex justify-between items-center border py-2 px-4 rounded-md cursor-pointer hover:bg-primary-foreground hover:border-violet-600">
                         <div className="flex gap-4 items-center text-sm">
                           <span>{getConditionLabel(condition.condition)}</span>
                           {condition.condition !== ELogicCondition.ALWAYS && (
@@ -261,7 +487,7 @@ export const EditQuestion = ({
                               </span>
                             </div>
                           )}
-                          <span>skip to →</span>
+                          <span>→</span>
                         </div>
                         <span className="overflow-hidden text-ellipsis whitespace-nowrap bg-violet-600 text-sm p-0.5 px-2 rounded-full">
                           {getNodeLabelFromId(condition.skipTo)[0]}
@@ -270,7 +496,7 @@ export const EditQuestion = ({
                     </PopoverTrigger>
                     <PopoverContent className="flex flex-col gap-2">
                       <p className="text-xs text-secondary-foreground opacity-75">
-                        Choose a destination...
+                        遷移先を選択...
                       </p>
                       <div>
                         {/* all nodes but the current one and start node*/}
@@ -309,18 +535,25 @@ export const EditQuestion = ({
                       </div>
                     </PopoverContent>
                   </Popover>
-                ))}
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground text-center py-8">
+                  {editingNode.data.question.type === EQuestionType.Select
+                    ? '「答える」タブで選択肢を追加してください'
+                    : '論理条件が設定されていません'}
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
         <SheetFooter>
           <Button
-            onClick={saveConditions}
+            onClick={saveAll}
             size={'lg'}
             className="w-full text-base"
             loading={isSaveLoading}
           >
-            Done 👍
+            完成です 👍
           </Button>
         </SheetFooter>
       </SheetContent>

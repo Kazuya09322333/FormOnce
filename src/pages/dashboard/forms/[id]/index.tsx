@@ -1,6 +1,6 @@
 import { Button, Icons, Input } from '@components/ui'
 import { FormStatus } from '@prisma/client'
-import { ArrowLeft, Check, Edit, Split, X } from 'lucide-react'
+import { ArrowLeft, Check, Edit, Eye, Split, X } from 'lucide-react'
 import type { GetServerSideProps } from 'next'
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
@@ -33,12 +33,18 @@ export default function Form(props: TProps) {
     {
       enabled: !!props.formId && props.formId !== 'new',
       refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      refetchOnReconnect: false,
       retry: false,
-      onSuccess(data) {
-        setQuestions(data.form?.questions as TQuestion[])
-      },
     },
   )
+
+  // Update questions when data changes
+  useEffect(() => {
+    if (data?.form?.questions) {
+      setQuestions(data.form.questions as TQuestion[])
+    }
+  }, [data])
 
   const { mutateAsync: createForm, isLoading: isCreatingForm } =
     api.form.create.useMutation()
@@ -64,14 +70,14 @@ export default function Form(props: TProps) {
 
   const formData = data?.form
 
-  // check if formId is valid, if unvalid redirect to dashboard
+  // check if formId is valid, if invalid redirect to dashboard
   useEffect(() => {
     if (props.formId === 'new') return
 
     if (isFormInvalid) {
-      // invalid form id
-      console.log('here')
-      void router.push('/dashboard/forms/new')
+      // invalid form id - redirect to forms list, not to /new to avoid loop
+      console.log('Invalid form ID, redirecting to dashboard')
+      void router.push('/dashboard/forms')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFormInvalid])
@@ -231,30 +237,31 @@ export default function Form(props: TProps) {
           <Icons.spinner className="mb-10 h-8 w-8 animate-spin" />
         </div>
       ) : (
-        <div className="flex h-full flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex gap-2">
+        <div className="flex h-full flex-col gap-2">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex gap-2 items-center min-w-0 flex-1">
               <Button
                 size={'sm'}
                 onClick={() => void router.push('/dashboard/forms')}
                 variant={'secondary'}
+                className="flex-shrink-0"
               >
-                <ArrowLeft className="h-5 w-5" />
+                <ArrowLeft className="h-4 w-4" />
               </Button>
               {isEditingFormName ? (
                 isUpdatingForm ? (
                   <div className="flex items-center gap-1">
-                    <Icons.spinner className="mr-3 h-5 w-5 animate-spin" />
+                    <Icons.spinner className="h-4 w-4 animate-spin" />
                   </div>
                 ) : (
                   <form
                     onSubmit={updateFormName}
-                    className="flex gap-2 items-center"
+                    className="flex gap-2 items-center flex-1"
                   >
                     <Input
                       id="form-name"
-                      size={56}
-                      placeholder="Search"
+                      className="max-w-xs"
+                      placeholder="フォーム名"
                       defaultValue={formData?.name ?? 'New Form'}
                       onMouseEnter={() =>
                         document.getElementById('form-name')?.focus()
@@ -276,16 +283,17 @@ export default function Form(props: TProps) {
                   </form>
                 )
               ) : (
-                <div className="flex gap-1">
-                  <h1 className="cursor-pointer text-2xl font-semibold">
+                <div className="flex gap-1 items-center min-w-0">
+                  <h1 className="text-lg font-semibold truncate">
                     {formData?.name ?? 'New Form'}
                   </h1>
                   <Button
                     size={'sm'}
                     variant={'ghost'}
                     onClick={() => setIsEditingFormName(true)}
+                    className="flex-shrink-0"
                   >
-                    <Edit className="text-muted-foreground h-4 w-4" />
+                    <Edit className="text-muted-foreground h-3.5 w-3.5" />
                   </Button>
                 </div>
               )}
@@ -294,15 +302,38 @@ export default function Form(props: TProps) {
             <Button
               size={'sm'}
               onClick={onToggleView}
-              className="absolute top-0 right-0 -translate-x-8 gap-1 rounded-t-none h-6 px-3 py-1.5"
+              variant={'outline'}
+              className="gap-1 h-8 px-3 text-xs flex-shrink-0"
             >
-              {view === 'basic' && <Split className="h-4 w-4" />}
-              {view === 'basic' ? 'フロー' : 'ベーシック'}ビルダーに切り替え
+              {view === 'basic' && <Split className="h-3.5 w-3.5" />}
+              {view === 'basic' ? 'フロー' : 'ベーシック'}
             </Button>
 
-            <div className="flex items-center gap-2 mt-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <Button
                 type="button"
+                size={'sm'}
+                onClick={() => {
+                  if (!formData?.questions.length) {
+                    toast.error('質問を追加してからプレビューしてください', {
+                      position: 'top-center',
+                      duration: 2000,
+                    })
+                    return
+                  }
+                  window.open(
+                    `/dashboard/forms/${props.formId}/preview`,
+                    '_blank',
+                  )
+                }}
+                variant={'outline'}
+                disabled={!formData?.questions.length}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                size={'default'}
                 onClick={() => void onTogglePublish()}
                 variant={
                   formData?.status === FormStatus.PUBLISHED
@@ -311,10 +342,11 @@ export default function Form(props: TProps) {
                 }
                 disabled={!formData?.questions.length}
                 loading={isPublishingForm || isUnpublishingForm}
+                className="min-w-[100px] font-semibold"
               >
                 {formData?.status === FormStatus.PUBLISHED
                   ? '非公開にする'
-                  : '公開する'}
+                  : 'フォームを公開'}
               </Button>
               <ShareDialog
                 disabled={formData?.status !== FormStatus.PUBLISHED}
@@ -322,14 +354,6 @@ export default function Form(props: TProps) {
                 onOpenChange={setShareDialogOpen}
                 link={formData?.link ?? ''}
               />
-              <Button
-                onClick={() =>
-                  void router.push(`/dashboard/forms/${props.formId}/summary`)
-                }
-                variant={'secondary'}
-              >
-                回答
-              </Button>
             </div>
           </div>
           {view === 'flow' ? (
@@ -358,7 +382,7 @@ export default function Form(props: TProps) {
   )
 }
 
-export const getServerSideProps: GetServerSideProps = (ctx) => {
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
   return {
     props: {
       formId: ctx.query.id,

@@ -29,7 +29,20 @@ export default function Form(props: TProps) {
       refetchOnWindowFocus: false,
       retry: false,
     },
-  )
+  ) as {
+    data:
+      | {
+          form: {
+            formSchema: TFormSchema
+            questions: TQuestion[]
+            name: string
+          } | null
+          formViewId?: string
+        }
+      | undefined
+    isLoading: boolean
+    isError: boolean
+  }
 
   // check if formId is valid, if unvalid redirect to fallback page
   useEffect(() => {

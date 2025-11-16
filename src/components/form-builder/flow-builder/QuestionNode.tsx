@@ -1,4 +1,14 @@
-import { MessageSquare, MoreVertical, Play, Split, Video } from 'lucide-react'
+import {
+  CheckCircle2,
+  Circle,
+  MessageSquare,
+  MoreVertical,
+  MousePointerClick,
+  Play,
+  Settings2,
+  Split,
+  Video,
+} from 'lucide-react'
 import { memo, useState } from 'react'
 import { Handle, Position, useReactFlow } from 'reactflow'
 import {
@@ -7,10 +17,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '~/components/ui'
-import { TLogic, TQuestion } from '~/types/question.types'
+import { EQuestionType, TLogic, TQuestion } from '~/types/question.types'
 import { api } from '~/utils/api'
-import { EditableQuestionDialog } from '../editable-question-modal'
+import { checkQuestionProgress } from '~/utils/questionProgress'
 import { VideoUploadDialog } from './VideoUploadDialog'
+import { AdvancedEditorDialog } from './advanced-editor-dialog'
 import { EditQuestion as EditNode } from './edit-question'
 import { handleStyleLeft, handleStyleRight } from './utils'
 
@@ -33,7 +44,8 @@ const QuestionNode = ({ data }: QuestionNodeProps) => {
   const edges = reactFlowInstance.getEdges()
   const hasIncomingEdge = edges.some((edge) => edge.target === question.id)
 
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  // 進捗状態をチェック
+  const progress = checkQuestionProgress(question)
 
   const [editQuestionNodeOpen, setEditQuestionNodeOpen] = useState(false)
   const [editQuestionNodeMode, setEditQuestionNodeMode] = useState<
@@ -43,6 +55,7 @@ const QuestionNode = ({ data }: QuestionNodeProps) => {
   const [toolBarOpen, setToolBarOpen] = useState(false)
 
   const [videoDialogOpen, setVideoDialogOpen] = useState(false)
+  const [advancedEditorOpen, setAdvancedEditorOpen] = useState(false)
 
   const { mutateAsync: editQuestion } = api.form.editQuestion.useMutation()
   const { mutateAsync: deleteQuestion } = api.form.deleteQuestion.useMutation()
@@ -65,24 +78,37 @@ const QuestionNode = ({ data }: QuestionNodeProps) => {
     data.refreshFormData()
   }
 
-  const onEdit = async (values: TQuestion) => {
+  const onEdit = async (values: Partial<TQuestion>) => {
+    const updatedQuestion = {
+      ...question,
+      ...values,
+      id: question.id!,
+    } as TQuestion & { id: string }
+
     await editQuestion({
       formId: data.formId,
-      question: {
-        ...values,
-        id: question.id!,
-      },
+      question: updatedQuestion,
     })
     data.refreshFormData()
-    setEditDialogOpen(false)
-  }
-
-  const openEditDialog = () => {
-    setEditDialogOpen(true)
   }
 
   const openVideoDialog = () => {
     setVideoDialogOpen(true)
+  }
+
+  const onVideoUploaded = async (videoId: string, videoUrl: string) => {
+    if (!question.id) return
+
+    await editQuestion({
+      formId: data.formId,
+      question: {
+        ...question,
+        id: question.id,
+        videoId,
+        videoUrl,
+      },
+    })
+    data.refreshFormData()
   }
 
   const onCloseEditQuestionNode = () => {
@@ -141,25 +167,46 @@ const QuestionNode = ({ data }: QuestionNodeProps) => {
           onVideoClick={() => onEditQuestionNode('video')}
           onAnswerClick={() => onEditQuestionNode('answer')}
           onLogicClick={() => onEditQuestionNode('logic')}
+          onAdvancedClick={() => setAdvancedEditorOpen(true)}
           onDelete={onDelete}
           onDuplciate={onDuplicate}
         />
       </div>
       <div
-        className={`flex flex-col border-2 border-violet-800 group-hover:border-violet-500 [&>div:first-child]:hover:border-violet-500 rounded-lg bg-primary-foreground w-64 h-56 group-hover:scale-105 transition-all duration-200 ${
+        className={`flex flex-col border-2 ${
+          progress.isComplete
+            ? 'border-green-600 group-hover:border-green-500'
+            : 'border-violet-800 group-hover:border-violet-500'
+        } [&>div:first-child]:hover:border-violet-500 rounded-lg bg-primary-foreground w-48 h-64 group-hover:scale-105 transition-all duration-200 ${
           toolBarOpen ? 'scale-105 border-violet-500' : ''
         }`}
       >
-        <div className="px-4 py-2 bg-primary-foreground rounded-t-lg border-b-2  border-violet-800">
-          <p className="overflow-hidden text-ellipsis whitespace-nowrap">
+        <div
+          className={`px-4 py-2 bg-primary-foreground rounded-t-lg border-b-2 ${
+            progress.isComplete ? 'border-green-600' : 'border-violet-800'
+          } flex items-center justify-between gap-2`}
+        >
+          <p className="overflow-hidden text-ellipsis whitespace-nowrap flex-1">
             {label}
           </p>
+          {progress.isComplete ? (
+            <CheckCircle2 size={16} className="text-green-600 flex-shrink-0" />
+          ) : (
+            <div className="flex-shrink-0 text-xs text-muted-foreground">
+              {progress.completionPercentage}%
+            </div>
+          )}
         </div>
         <div className="flex h-full rounded-b-lg">
           <div
-            className="w-1/2 h-full rounded-bl-lg bg-black opacity-50 hover:opacity-100 flex justify-center items-center border-r border-violet-500 [&>*:first-child]:hover:bg-violet-800 [&>*:first-child]:hover:text-white [&>*:first-child]:hover:h-10 [&>*:first-child]:hover:w-10"
+            className="w-1/2 h-full rounded-bl-lg bg-black opacity-50 hover:opacity-100 flex justify-center items-center border-r border-violet-500 [&>*:first-child]:hover:bg-violet-800 [&>*:first-child]:hover:text-white [&>*:first-child]:hover:h-10 [&>*:first-child]:hover:w-10 relative"
             onClick={openVideoDialog}
           >
+            {question.videoId ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-green-900 bg-opacity-70">
+                <Video size={32} className="text-green-300" />
+              </div>
+            ) : null}
             <Button
               variant={'secondary'}
               size={'icon'}
@@ -168,12 +215,29 @@ const QuestionNode = ({ data }: QuestionNodeProps) => {
               <Play size={32} className="text-violet-300 ml-0.5" />
             </Button>
           </div>
-          <div
-            className="w-1/2 h-full flex flex-col justify-center items-center gap-4 [&>button]:hover:bg-violet-600 cursor-pointer"
-            onClick={openEditDialog}
-          >
-            <Button variant={'secondary'} size={'sm'} className="w-[70%] h-5" />
-            <Button variant={'secondary'} size={'sm'} className="w-[70%] h-5" />
+          <div className="w-1/2 h-full flex flex-col justify-center items-center gap-2 p-2 overflow-y-auto">
+            {question.type === EQuestionType.Select &&
+            question.options &&
+            (question.options as string[]).length > 0 ? (
+              (question.options as string[]).map((option, index) => (
+                <div
+                  key={index}
+                  className="w-full px-3 py-1.5 bg-violet-100 hover:bg-violet-200 text-violet-900 rounded-md text-xs text-center cursor-pointer transition-colors truncate"
+                  title={option}
+                >
+                  {option}
+                </div>
+              ))
+            ) : question.type === EQuestionType.CTAButton ? (
+              <div className="flex flex-col items-center justify-center gap-2 text-violet-600">
+                <MousePointerClick size={32} />
+                <div className="text-xs text-center font-medium">CTAボタン</div>
+              </div>
+            ) : (
+              <div className="text-xs text-muted-foreground text-center px-2">
+                {question.type === EQuestionType.Select ? '選択肢なし' : ''}
+              </div>
+            )}
           </div>
         </div>
         <Handle
@@ -186,15 +250,18 @@ const QuestionNode = ({ data }: QuestionNodeProps) => {
           position={Position.Left}
           style={handleStyleLeft}
         />
-        <EditableQuestionDialog
-          {...question}
-          isOpen={editDialogOpen}
-          setIsOpen={setEditDialogOpen}
-          editQuestion={onEdit}
-        />
         <VideoUploadDialog
           isOpen={videoDialogOpen}
           setIsOpen={setVideoDialogOpen}
+          onVideoUploaded={onVideoUploaded}
+          existingVideoUrl={question.videoUrl}
+          existingVideoId={question.videoId}
+        />
+        <AdvancedEditorDialog
+          isOpen={advancedEditorOpen}
+          setIsOpen={setAdvancedEditorOpen}
+          question={question}
+          onSave={onEdit}
         />
       </div>
       {questionNode && (
@@ -220,6 +287,7 @@ type ToolBarProps = {
   onVideoClick: () => void
   onAnswerClick: () => void
   onLogicClick: () => void
+  onAdvancedClick: () => void
 
   // NOTE: these will be used in future for hover effects
   // onLogicHoverStart: () => void
@@ -238,6 +306,7 @@ const ToolBar = ({
   onVideoClick,
   onAnswerClick,
   onLogicClick,
+  onAdvancedClick,
   onDelete,
   onDuplciate,
   // onAnswerHoverStart,
@@ -279,7 +348,7 @@ const ToolBar = ({
           // onMouseLeave={onVideoHoverStop}
         >
           <Video size={32} fill="white" />
-          Video
+          動画
         </Button>
         <Button
           variant={'ghost'}
@@ -290,7 +359,7 @@ const ToolBar = ({
           // onMouseLeave={onAnswerHoverStop}
         >
           <MessageSquare size={32} />
-          Answer
+          回答
         </Button>
         <Button
           variant={'ghost'}
@@ -301,7 +370,16 @@ const ToolBar = ({
           // onMouseLeave={onLogicHoverStop}
         >
           <Split size={32} />
-          Logic
+          ロジック
+        </Button>
+        <Button
+          variant={'ghost'}
+          size={'lg'}
+          className="h-full flex flex-col items-center gap-2 w-fit rounded-none"
+          onClick={onAdvancedClick}
+        >
+          <Settings2 size={32} />
+          調整
         </Button>
       </div>
       <div>
@@ -311,7 +389,7 @@ const ToolBar = ({
               variant={'ghost'}
               className="h-full flex items-center justify-center border-l-2 rounded-none"
             >
-              <MoreVertical size={32} />
+              <MoreVertical size={32} className="text-gray-700" />
             </Button>
           </PopoverTrigger>
           <PopoverContent
@@ -329,7 +407,7 @@ const ToolBar = ({
                 loading={isDuplicateLoading}
                 noChildOnLoading
               >
-                Duplicate
+                複製
               </Button>
               <Button
                 variant={'ghost'}
@@ -339,7 +417,7 @@ const ToolBar = ({
                 noChildOnLoading
                 className="hover:text-red-500"
               >
-                Delete
+                削除
               </Button>
             </div>
           </PopoverContent>

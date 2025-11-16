@@ -4,7 +4,11 @@ import React, { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { z } from 'zod'
 import type { TFormSchema } from '~/types/form.types'
-import type { TQuestion } from '~/types/question.types'
+import {
+  EQuestionType,
+  type TQuestion,
+  type TSelectQuestion,
+} from '~/types/question.types'
 import { formSchemaToZod } from '~/utils/forms/formSchemaToZod'
 import { InputRenderer } from './input-renderer'
 
@@ -41,7 +45,7 @@ function FormRenderer({
     setProgress(currProgress)
   }, [currentQuestionIdx, questions])
 
-  const handleNext = async () => {
+  const handleNext = async (skipToQuestionId?: string) => {
     await form.trigger(questions[qIdx]?.id)
     if (form.formState.errors[questions[qIdx]!.id!]) {
       console.log('error', form.formState.errors[questions[qIdx]!.id!])
@@ -50,20 +54,44 @@ function FormRenderer({
 
     setIsNextLoading(true)
 
-    if (qIdx === questions.length - 1) {
+    // Handle branching logic
+    let nextIdx = qIdx + 1
+
+    if (skipToQuestionId && skipToQuestionId !== 'end') {
+      // Find the index of the question to skip to
+      const targetIdx = questions.findIndex((q) => q.id === skipToQuestionId)
+      if (targetIdx !== -1) {
+        nextIdx = targetIdx
+      }
+    } else if (skipToQuestionId === 'end') {
+      // Submit the form
+      await props.onSubmit(form.getValues())
+      form.reset()
+      setIsNextLoading(false)
+      return
+    }
+
+    if (qIdx === questions.length - 1 || nextIdx >= questions.length) {
       await props.onSubmit(form.getValues())
       form.reset()
     } else {
       props.onNext()
     }
 
-    setQuestionIdx((i) => (i + 1 > questions.length - 1 ? 0 : i + 1))
+    setQuestionIdx(nextIdx > questions.length - 1 ? 0 : nextIdx)
 
     const currProgress =
-      ((qIdx + 1 < questions.length ? qIdx + 2 : 1) * 100) / questions.length
+      ((nextIdx < questions.length ? nextIdx + 1 : 1) * 100) / questions.length
     setProgress(currProgress)
 
     setIsNextLoading(false)
+  }
+
+  const handleAnswerSelect = (answer: string, skipTo?: string) => {
+    // Automatically trigger next when an answer is selected in VideoAsk mode
+    setTimeout(() => {
+      void handleNext(skipTo)
+    }, 500) // Small delay for UX
   }
 
   const defaultValues = questions.reduce(
@@ -138,6 +166,7 @@ function FormRenderer({
                       field={field}
                       question={question}
                       formControl={form.control}
+                      onAnswerSelect={handleAnswerSelect}
                     />
                   </div>
                 </div>
@@ -146,17 +175,30 @@ function FormRenderer({
           ))}
         </form>
       </Form>
-      <div className="mt-8 flex justify-end">
-        <Button type="button" onClick={() => void handleNext()}>
-          {isNextLoading ? (
-            <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-          ) : qIdx === questions.length - 1 ? (
-            'Submit'
-          ) : (
-            'Next'
-          )}
-        </Button>
-      </div>
+      {/* Hide Next button for VideoAsk-style questions (they auto-advance) */}
+      {(() => {
+        const currentQuestion = questions[qIdx]
+        if (
+          !currentQuestion?.videoUrl ||
+          currentQuestion.type !== EQuestionType.Select
+        ) {
+          return true
+        }
+        const selectQuestion = currentQuestion as TSelectQuestion
+        return !(selectQuestion.options && selectQuestion.options.length > 0)
+      })() && (
+        <div className="mt-8 flex justify-end">
+          <Button type="button" onClick={() => void handleNext()}>
+            {isNextLoading ? (
+              <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+            ) : qIdx === questions.length - 1 ? (
+              'Submit'
+            ) : (
+              'Next'
+            )}
+          </Button>
+        </div>
+      )}
       <div className="mt-14 px-24">
         <Progress className="h-[5px]" value={progress} />
       </div>

@@ -1,4 +1,4 @@
-import { createPagesServerClient } from '@supabase/auth-helpers-nextjs'
+import { type CookieOptions, createServerClient } from '@supabase/ssr'
 import type { GetServerSidePropsContext } from 'next'
 
 /**
@@ -7,20 +7,57 @@ import type { GetServerSidePropsContext } from 'next'
 export const getServerAuthSessionSupabase = async (
   ctx: GetServerSidePropsContext,
 ) => {
-  const supabase = createPagesServerClient(ctx)
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return ctx.req.cookies[name]
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          ctx.res.setHeader(
+            'Set-Cookie',
+            `${name}=${value}; Path=/; ${
+              options.maxAge ? `Max-Age=${options.maxAge};` : ''
+            } ${options.httpOnly ? 'HttpOnly;' : ''} ${
+              options.secure ? 'Secure;' : ''
+            } ${options.sameSite ? `SameSite=${options.sameSite};` : ''}`,
+          )
+        },
+        remove(name: string, options: CookieOptions) {
+          ctx.res.setHeader(
+            'Set-Cookie',
+            `${name}=; Path=/; Max-Age=0; ${
+              options.httpOnly ? 'HttpOnly;' : ''
+            } ${options.secure ? 'Secure;' : ''} ${
+              options.sameSite ? `SameSite=${options.sameSite};` : ''
+            }`,
+          )
+        },
+      },
+    },
+  )
 
+  // Use getSession instead of getUser for better cookie handling
   const {
-    data: { user },
+    data: { session },
     error,
-  } = await supabase.auth.getUser()
+  } = await supabase.auth.getSession()
 
-  console.log('[Auth Check] User:', user?.id, 'Error:', error?.message)
+  console.log(
+    '[Auth Check] Session:',
+    session?.user?.id,
+    'Error:',
+    error?.message,
+  )
 
-  if (!user) {
-    console.log('[Auth Check] No user found, returning null')
+  if (!session?.user) {
+    console.log('[Auth Check] No session found, returning null')
     return null
   }
 
+  const user = session.user
   console.log('[Auth Check] User found:', user.email)
 
   return {

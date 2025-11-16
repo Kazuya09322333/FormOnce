@@ -69,7 +69,13 @@ const WebhookTable = () => {
   } = api.webhook.getAll.useQuery(undefined, {
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-  })
+  }) as {
+    data:
+      | (Webhook & { createdBy: { id: string; name: string | null } })[]
+      | undefined
+    isLoading: boolean
+    refetch: () => Promise<any>
+  }
 
   const { mutateAsync: enableWebhook } = api.webhook.enable.useMutation()
   const { mutateAsync: disableWebhook } = api.webhook.disable.useMutation()

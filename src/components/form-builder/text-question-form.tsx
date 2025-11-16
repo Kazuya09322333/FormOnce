@@ -56,7 +56,7 @@ const TextQuestionForm = (props: TTextQuestionProps) => {
             subType: props.subType,
           }
         : {
-            title: '',
+            title: '無題の質問',
             description: '',
             placeholder: '',
             type: EQuestionType.Text,
@@ -67,9 +67,14 @@ const TextQuestionForm = (props: TTextQuestionProps) => {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsloading(true)
+    // Ensure title is not empty
+    const submittedValues = {
+      ...values,
+      title: values.title.trim() || '無題の質問',
+    }
     // This will be type-safe and validated.
-    if (props.mode === 'add') await props.onSubmit(values)
-    else await props.onEdit(values)
+    if (props.mode === 'add') await props.onSubmit(submittedValues)
+    else await props.onEdit(submittedValues)
     setIsloading(false)
     form.reset()
   }

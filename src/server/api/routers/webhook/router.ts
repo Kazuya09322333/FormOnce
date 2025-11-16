@@ -1,4 +1,5 @@
 import { TRPCError } from '@trpc/server'
+import { getSupabaseAdmin } from '~/lib/supabase'
 import { createTRPCRouter, protectedProcedure } from '~/server/api/trpc'
 
 import {
@@ -21,22 +22,34 @@ import {
 export const webhooksRouter = createTRPCRouter({
   getAll: protectedProcedure.query(async ({ ctx }) => {
     try {
-      return await ctx.prisma.webhook.findMany({
-        where: {
-          workspaceId: ctx.session.user.workspaceId,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-        include: {
-          createdBy: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
-      })
+      const supabase = getSupabaseAdmin()
+
+      const workspaceId = ctx.session.user.workspaceId
+      if (!workspaceId) {
+        throw new TRPCError({
+          code: 'UNAUTHORIZED',
+          message: 'Workspace ID is required',
+        })
+      }
+
+      const { data, error } = await supabase
+        .from('Webhook')
+        .select(`
+          *,
+          createdBy:User!Webhook_createdById_fkey(id, name)
+        `)
+        .eq('workspaceId', workspaceId)
+        .order('createdAt', { ascending: false })
+
+      if (error) {
+        console.log(error)
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'could not get webhooks, please try again later.',
+        })
+      }
+
+      return data
     } catch (error) {
       console.log(error)
       throw new TRPCError({
@@ -50,16 +63,38 @@ export const webhooksRouter = createTRPCRouter({
     .input(ZAddWebhook)
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.prisma.webhook.create({
-          data: {
+        const supabase = getSupabaseAdmin()
+
+        const workspaceId = ctx.session.user.workspaceId
+        if (!workspaceId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Workspace ID is required',
+          })
+        }
+
+        const { data, error } = await supabase
+          .from('Webhook')
+          .insert({
             url: input.url,
             name: input.name,
             secret: input.secret,
             events: input.events,
             createdById: ctx.session.user.id,
-            workspaceId: ctx.session.user.workspaceId!,
-          },
-        })
+            workspaceId: workspaceId,
+          } as any)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'could not create webhook, please try again later.',
+          })
+        }
+
+        return data
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -72,12 +107,33 @@ export const webhooksRouter = createTRPCRouter({
     .input(ZDeleteWebhook)
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.prisma.webhook.delete({
-          where: {
-            id: input.id,
-            workspaceId: ctx.session.user.workspaceId,
-          },
-        })
+        const supabase = getSupabaseAdmin()
+
+        const workspaceId = ctx.session.user.workspaceId
+        if (!workspaceId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Workspace ID is required',
+          })
+        }
+
+        const { data, error } = await supabase
+          .from('Webhook')
+          .delete()
+          .eq('id', input.id)
+          .eq('workspaceId', workspaceId)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'could not delete webhook, please try again later.',
+          })
+        }
+
+        return data
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -91,15 +147,36 @@ export const webhooksRouter = createTRPCRouter({
     .input(ZDisableWebhook)
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.prisma.webhook.update({
-          where: {
-            id: input.id,
-            workspaceId: ctx.session.user.workspaceId,
-          },
-          data: {
-            enabled: false,
-          },
-        })
+        const supabase = getSupabaseAdmin()
+
+        const workspaceId = ctx.session.user.workspaceId
+        if (!workspaceId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Workspace ID is required',
+          })
+        }
+
+        const updateData: { enabled?: boolean } = { enabled: false }
+
+        const { data, error } = await supabase
+          .from('Webhook')
+          // @ts-ignore - Supabase type inference issue
+          .update(updateData as any)
+          .eq('id', input.id)
+          .eq('workspaceId', workspaceId)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'could not disable webhook, please try again later.',
+          })
+        }
+
+        return data
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -113,15 +190,36 @@ export const webhooksRouter = createTRPCRouter({
     .input(ZEnableWebhook)
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.prisma.webhook.update({
-          where: {
-            id: input.id,
-            workspaceId: ctx.session.user.workspaceId,
-          },
-          data: {
-            enabled: true,
-          },
-        })
+        const supabase = getSupabaseAdmin()
+
+        const workspaceId = ctx.session.user.workspaceId
+        if (!workspaceId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Workspace ID is required',
+          })
+        }
+
+        const updateData: { enabled?: boolean } = { enabled: true }
+
+        const { data, error } = await supabase
+          .from('Webhook')
+          // @ts-ignore - Supabase type inference issue
+          .update(updateData as any)
+          .eq('id', input.id)
+          .eq('workspaceId', workspaceId)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'could not enable webhook, please try again later.',
+          })
+        }
+
+        return data
       } catch (error) {
         console.log(error)
         throw new TRPCError({
@@ -135,18 +233,46 @@ export const webhooksRouter = createTRPCRouter({
     .input(ZUpdateWebhook)
     .mutation(async ({ ctx, input }) => {
       try {
-        return await ctx.prisma.webhook.update({
-          where: {
-            id: input.id,
-            workspaceId: ctx.session.user.workspaceId,
-          },
-          data: {
-            url: input.url,
-            name: input.name,
-            secret: input.secret,
-            events: input.events,
-          },
-        })
+        const supabase = getSupabaseAdmin()
+
+        const workspaceId = ctx.session.user.workspaceId
+        if (!workspaceId) {
+          throw new TRPCError({
+            code: 'UNAUTHORIZED',
+            message: 'Workspace ID is required',
+          })
+        }
+
+        const updateData: {
+          url?: string
+          name?: string
+          secret?: string
+          events?: string[]
+        } = {
+          url: input.url,
+          name: input.name,
+          secret: input.secret,
+          events: input.events,
+        }
+
+        const { data, error } = await supabase
+          .from('Webhook')
+          // @ts-ignore - Supabase type inference issue
+          .update(updateData as any)
+          .eq('id', input.id)
+          .eq('workspaceId', workspaceId)
+          .select()
+          .single()
+
+        if (error || !data) {
+          console.log(error)
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: 'could not update webhook, please try again later.',
+          })
+        }
+
+        return data
       } catch (error) {
         console.log(error)
         throw new TRPCError({

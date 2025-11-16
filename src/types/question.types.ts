@@ -3,6 +3,7 @@ import * as z from 'zod'
 export enum EQuestionType {
   Text = 'text',
   Select = 'select',
+  CTAButton = 'cta_button',
   // TODO: Implement the rest of the types
   // Date = 'date',
   // Time = 'time',
@@ -31,6 +32,12 @@ export enum ESelectSubType {
   Multiple = 'multiple',
 }
 
+export enum ECTAActionType {
+  NextStep = 'next_step',
+  URLRedirect = 'url_redirect',
+  EndScreen = 'end_screen',
+}
+
 export enum ELogicCondition {
   ALWAYS = 'always',
   IS = 'is',
@@ -53,8 +60,8 @@ export type TLogic = z.infer<typeof ZLogic>
 
 const ZBaseQuestion = z.object({
   id: z.string().optional(),
-  title: z.string().min(5).max(500),
-  description: z.string().min(10).max(500).optional(),
+  title: z.string().min(1).max(500),
+  description: z.string().max(500).optional().or(z.literal('')),
   placeholder: z.string().optional(),
   type: z.nativeEnum(EQuestionType),
   position: z
@@ -64,6 +71,8 @@ const ZBaseQuestion = z.object({
     })
     .optional(),
   logic: z.array(ZLogic).optional(),
+  videoId: z.string().optional(),
+  videoUrl: z.string().optional(),
 })
 
 export const ZTextQuestion = z.object({
@@ -83,6 +92,20 @@ export const ZSelectQuestion = z.object({
 
 export type TSelectQuestion = z.infer<typeof ZSelectQuestion>
 
-export const ZQuestion = z.union([ZTextQuestion, ZSelectQuestion])
+export const ZCTAButtonQuestion = z.object({
+  ...ZBaseQuestion.shape,
+  type: z.literal(EQuestionType.CTAButton),
+  buttonText: z.string().min(1).max(100),
+  actionType: z.nativeEnum(ECTAActionType),
+  redirectUrl: z.string().url().optional(),
+})
+
+export type TCTAButtonQuestion = z.infer<typeof ZCTAButtonQuestion>
+
+export const ZQuestion = z.union([
+  ZTextQuestion,
+  ZSelectQuestion,
+  ZCTAButtonQuestion,
+])
 
 export type TQuestion = z.infer<typeof ZQuestion>
