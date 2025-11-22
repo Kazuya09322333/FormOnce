@@ -10,7 +10,7 @@ export default function Custom404() {
   return (
     <>
       <Head>
-        <title>404 - ページが見つかりません | FormOnce</title>
+        <title>404 - ページが見つかりません | MovFlow</title>
       </Head>
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-950">
         <div className="text-center px-4 max-w-2xl mx-auto">

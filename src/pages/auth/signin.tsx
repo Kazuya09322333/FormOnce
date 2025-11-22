@@ -13,18 +13,24 @@ export default function AuthenticationPage() {
   return (
     <RootLayout title="ログイン">
       <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-zinc-950 text-zinc-50 selection:bg-zinc-800">
-        
         {/* Animated Background - Business Growth Theme */}
         <div className="absolute inset-0 z-0 pointer-events-none">
-           {/* Subtle Grid Pattern */}
+          {/* Subtle Grid Pattern */}
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#3f3f46_1px,transparent_1px),linear-gradient(to_bottom,#3f3f46_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.2]" />
-          
+
           {/* Rising Gradient Orbs - Symbolizing Growth */}
-          <div className="absolute bottom-0 left-[-20%] right-0 top-[-10%] h-[500px] w-[500px] rounded-full bg-zinc-700/20 blur-[100px] animate-pulse" style={{ animationDuration: '8s' }} />
-          <div className="absolute bottom-[-20%] right-[-10%] h-[600px] w-[600px] rounded-full bg-indigo-600/10 blur-[120px] animate-pulse" style={{ animationDuration: '10s', animationDelay: '1s' }} />
-          
+          <div
+            className="absolute bottom-0 left-[-20%] right-0 top-[-10%] h-[500px] w-[500px] rounded-full bg-zinc-700/20 blur-[100px] animate-pulse"
+            style={{ animationDuration: '8s' }}
+          />
+          <div
+            className="absolute bottom-[-20%] right-[-10%] h-[600px] w-[600px] rounded-full bg-indigo-600/10 blur-[120px] animate-pulse"
+            style={{ animationDuration: '10s', animationDelay: '1s' }}
+          />
+
           {/* Rising Lines Animation */}
-          <style dangerouslySetInnerHTML={{
+          <style
+            dangerouslySetInnerHTML={{
               __html: `
                 @keyframes rise {
                   0% { transform: translateY(100vh) scaleY(1); opacity: 0; }
@@ -44,24 +50,74 @@ export default function AuthenticationPage() {
                   height: var(--height);
                   opacity: 0;
                 }
-              `
-            }} />
-            
-            <div className="growth-line" style={{ '--duration': '7s', '--delay': '0s', '--left': '15%', '--height': '300px' } as React.CSSProperties} />
-            <div className="growth-line" style={{ '--duration': '10s', '--delay': '2s', '--left': '35%', '--height': '400px' } as React.CSSProperties} />
-            <div className="growth-line" style={{ '--duration': '8s', '--delay': '1s', '--left': '55%', '--height': '250px' } as React.CSSProperties} />
-            <div className="growth-line" style={{ '--duration': '12s', '--delay': '3s', '--left': '75%', '--height': '350px' } as React.CSSProperties} />
-            <div className="growth-line" style={{ '--duration': '9s', '--delay': '4s', '--left': '90%', '--height': '450px' } as React.CSSProperties} />
+              `,
+            }}
+          />
+
+          <div
+            className="growth-line"
+            style={
+              {
+                '--duration': '7s',
+                '--delay': '0s',
+                '--left': '15%',
+                '--height': '300px',
+              } as React.CSSProperties
+            }
+          />
+          <div
+            className="growth-line"
+            style={
+              {
+                '--duration': '10s',
+                '--delay': '2s',
+                '--left': '35%',
+                '--height': '400px',
+              } as React.CSSProperties
+            }
+          />
+          <div
+            className="growth-line"
+            style={
+              {
+                '--duration': '8s',
+                '--delay': '1s',
+                '--left': '55%',
+                '--height': '250px',
+              } as React.CSSProperties
+            }
+          />
+          <div
+            className="growth-line"
+            style={
+              {
+                '--duration': '12s',
+                '--delay': '3s',
+                '--left': '75%',
+                '--height': '350px',
+              } as React.CSSProperties
+            }
+          />
+          <div
+            className="growth-line"
+            style={
+              {
+                '--duration': '9s',
+                '--delay': '4s',
+                '--left': '90%',
+                '--height': '450px',
+              } as React.CSSProperties
+            }
+          />
         </div>
 
         {/* Main Container */}
         <div className="relative z-10 w-full max-w-[350px] space-y-12 px-4 sm:px-0">
-          
           {/* Header Section */}
           <div className="flex flex-col items-center space-y-6 text-center">
             {/* Minimal Logo */}
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-900 text-zinc-50 ring-1 ring-zinc-800/50 shadow-xl shadow-zinc-950/50">
-               <svg
+              <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="none"
@@ -88,18 +144,17 @@ export default function AuthenticationPage() {
           {/* Form Section */}
           <div className="space-y-8">
             <UserAuthForm role="signin" />
-            
+
             <p className="text-center text-sm text-zinc-500">
               アカウントをお持ちでないですか？{' '}
-              <Link 
-                href="/auth/signup" 
+              <Link
+                href="/auth/signup"
                 className="font-medium text-zinc-300 hover:text-white transition-colors underline underline-offset-4"
               >
                 新規登録
               </Link>
             </p>
           </div>
-
         </div>
       </div>
     </RootLayout>

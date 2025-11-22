@@ -127,7 +127,7 @@ export function AddWebhookDialog({
                   <FormDescription>
                     The URL where
                     <span className="mx-1 text-[hsl(280,100%,70%)]">
-                      FormOnce
+                      MovFlow
                     </span>
                     will send the webhook data
                   </FormDescription>
@@ -279,7 +279,7 @@ export function AddWebhookDialog({
                     <FormDescription>
                       A secret key to make sure webhook is from{' '}
                       <span className="mx-0 text-[hsl(280,100%,70%)]">
-                        FormOnce
+                        MovFlow
                       </span>
                     </FormDescription>
                     <FormMessage />

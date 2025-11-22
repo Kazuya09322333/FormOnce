@@ -61,12 +61,13 @@ const AnimatedBackground = () => (
     {/* Subtle colored spots */}
     <div className="absolute top-[-20%] left-[-10%] h-[800px] w-[800px] rounded-full bg-violet-600/10 blur-[120px]" />
     <div className="absolute bottom-[-20%] right-[-10%] h-[600px] w-[600px] rounded-full bg-fuchsia-600/10 blur-[120px]" />
-    
+
     {/* Grid Pattern */}
     <div className="absolute inset-0 bg-[linear-gradient(to_right,#27272a_1px,transparent_1px),linear-gradient(to_bottom,#27272a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.2]" />
-    
-    <style dangerouslySetInnerHTML={{
-      __html: `
+
+    <style
+      dangerouslySetInnerHTML={{
+        __html: `
         @keyframes rise {
           0% { transform: translateY(100vh) scaleY(1); opacity: 0; }
           50% { opacity: 0.5; }
@@ -83,15 +84,22 @@ const AnimatedBackground = () => (
           height: var(--height);
           opacity: 0;
         }
-      `
-    }} />
+      `,
+      }}
+    />
     {[...Array(8)].map((_, i) => (
-      <div key={i} className="growth-line" style={{
-        '--duration': `${8 + i * 2}s`,
-        '--delay': `${i * 1.2}s`,
-        '--left': `${10 + i * 12}%`,
-        '--height': `${250 + i * 60}px`
-      } as React.CSSProperties} />
+      <div
+        key={i}
+        className="growth-line"
+        style={
+          {
+            '--duration': `${8 + i * 2}s`,
+            '--delay': `${i * 1.2}s`,
+            '--left': `${10 + i * 12}%`,
+            '--height': `${250 + i * 60}px`,
+          } as React.CSSProperties
+        }
+      />
     ))}
   </div>
 )
@@ -101,7 +109,8 @@ const features = [
   {
     icon: Video,
     title: '動画フォーム',
-    description: '質問を動画で伝えることで、より人間味のあるコミュニケーションを実現',
+    description:
+      '質問を動画で伝えることで、より人間味のあるコミュニケーションを実現',
     bgGradient: 'from-violet-500/10 to-purple-500/10',
     iconColor: 'text-violet-400',
     details: ['最大500MBアップロード', 'マルチフォーマット対応', '自動変換'],
@@ -207,9 +216,9 @@ export default function Home({ id }: { id: string }) {
   }
 
   return (
-    <RootLayout title="FormOnce - 次世代フォームビルダー">
+    <RootLayout title="MovFlow - 次世代フォームビルダー">
       <Head>
-        <title>FormOnce | 動画で伝える次世代フォーム</title>
+        <title>MovFlow | 動画で伝える次世代フォーム</title>
       </Head>
 
       <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-violet-500/30">
@@ -221,27 +230,39 @@ export default function Home({ id }: { id: string }) {
                 <Sparkles className="h-4 w-4 text-white" />
               </div>
               <span className="text-lg font-bold tracking-tight text-zinc-100">
-                FormOnce
+                MovFlow
               </span>
             </Link>
 
             <div className="flex items-center gap-4">
               {id ? (
                 <>
-                  <Button variant="ghost" onClick={() => router.push('/dashboard/forms')} className="text-zinc-400 hover:text-zinc-100">
+                  <Button
+                    variant="ghost"
+                    onClick={() => router.push('/dashboard/forms')}
+                    className="text-zinc-400 hover:text-zinc-100"
+                  >
                     Dashboard
                   </Button>
-                  <Button variant="outline" onClick={handleSignout} className="border-zinc-800 bg-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100">
+                  <Button
+                    variant="outline"
+                    onClick={handleSignout}
+                    className="border-zinc-800 bg-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100"
+                  >
                     Sign out
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button variant="ghost" onClick={() => router.push('/auth/signin')} className="text-zinc-400 hover:text-zinc-100 hover:bg-white/5">
+                  <Button
+                    variant="ghost"
+                    onClick={() => router.push('/auth/signin')}
+                    className="text-zinc-400 hover:text-zinc-100 hover:bg-white/5"
+                  >
                     Log in
                   </Button>
-                  <Button 
-                    onClick={() => router.push('/auth/signup')} 
+                  <Button
+                    onClick={() => router.push('/auth/signup')}
                     className="relative overflow-hidden bg-white text-zinc-950 hover:bg-zinc-200 transition-all shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)]"
                   >
                     Get Started
@@ -255,11 +276,13 @@ export default function Home({ id }: { id: string }) {
         {/* Hero Section */}
         <section className="relative overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-32">
           <AnimatedBackground />
-          
+
           <div className="container relative z-10 mx-auto px-4 text-center sm:px-6 lg:px-8">
             <div className="mb-8 inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 backdrop-blur-sm shadow-lg shadow-violet-500/10">
               <Sparkles className="mr-2 h-3 w-3 text-violet-400" />
-              <span className="text-xs font-medium text-violet-300">Open Source & Free Forever</span>
+              <span className="text-xs font-medium text-violet-300">
+                Open Source & Free Forever
+              </span>
             </div>
 
             <h1 className="mb-8 text-5xl font-bold tracking-tight text-zinc-50 sm:text-7xl">
@@ -272,7 +295,8 @@ export default function Home({ id }: { id: string }) {
 
             <p className="mx-auto mb-12 max-w-2xl text-lg text-zinc-400 leading-relaxed">
               従来のテキストフォームを超えて。
-              <span className="text-zinc-200 font-medium">動画と音声</span>による対話的なコミュニケーションで、
+              <span className="text-zinc-200 font-medium">動画と音声</span>
+              による対話的なコミュニケーションで、
               ユーザーの本当の声を聞きましょう。
             </p>
 
@@ -285,7 +309,7 @@ export default function Home({ id }: { id: string }) {
                 無料で始める
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-              
+
               <Button
                 size="lg"
                 variant="outline"
@@ -314,8 +338,8 @@ export default function Home({ id }: { id: string }) {
                   />
                   <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                     <div className="flex items-center gap-2 rounded-full bg-white/10 px-6 py-3 backdrop-blur-md border border-white/20 text-white shadow-2xl font-medium">
-                       <PlayCircle className="h-5 w-5" />
-                       <span>Watch Demo</span>
+                      <PlayCircle className="h-5 w-5" />
+                      <span>Watch Demo</span>
                     </div>
                   </div>
                 </div>
@@ -326,9 +350,9 @@ export default function Home({ id }: { id: string }) {
 
         {/* Features with Colorful Gradients */}
         <section className="py-32 relative overflow-hidden">
-           {/* Background Glows */}
-           <div className="absolute right-0 top-1/4 h-[500px] w-[500px] rounded-full bg-blue-600/5 blur-[100px]" />
-           <div className="absolute left-0 bottom-1/4 h-[500px] w-[500px] rounded-full bg-purple-600/5 blur-[100px]" />
+          {/* Background Glows */}
+          <div className="absolute right-0 top-1/4 h-[500px] w-[500px] rounded-full bg-blue-600/5 blur-[100px]" />
+          <div className="absolute left-0 bottom-1/4 h-[500px] w-[500px] rounded-full bg-purple-600/5 blur-[100px]" />
 
           <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mb-20 text-center">
@@ -342,15 +366,30 @@ export default function Home({ id }: { id: string }) {
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {features.map((feature, index) => (
-                <Card key={index} className="group relative border border-white/5 bg-zinc-900/40 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-white/10 hover:bg-zinc-900/60 hover:shadow-2xl hover:shadow-black/50">
+                <Card
+                  key={index}
+                  className="group relative border border-white/5 bg-zinc-900/40 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-white/10 hover:bg-zinc-900/60 hover:shadow-2xl hover:shadow-black/50"
+                >
                   {/* Hover Gradient */}
-                  <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br pointer-events-none rounded-xl", feature.bgGradient)} />
-                  
+                  <div
+                    className={cn(
+                      'absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br pointer-events-none rounded-xl',
+                      feature.bgGradient,
+                    )}
+                  />
+
                   <CardHeader>
-                    <div className={cn("mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-900 border border-white/10 shadow-lg transition-colors group-hover:border-white/20 group-hover:bg-zinc-800", feature.iconColor)}>
+                    <div
+                      className={cn(
+                        'mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-900 border border-white/10 shadow-lg transition-colors group-hover:border-white/20 group-hover:bg-zinc-800',
+                        feature.iconColor,
+                      )}
+                    >
                       <feature.icon className="h-6 w-6" />
                     </div>
-                    <CardTitle className="text-xl text-zinc-100 group-hover:text-white transition-colors">{feature.title}</CardTitle>
+                    <CardTitle className="text-xl text-zinc-100 group-hover:text-white transition-colors">
+                      {feature.title}
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="relative z-10">
                     <CardDescription className="text-zinc-400 mb-6 group-hover:text-zinc-300 transition-colors">
@@ -358,8 +397,16 @@ export default function Home({ id }: { id: string }) {
                     </CardDescription>
                     <ul className="space-y-2">
                       {feature.details.map((detail, idx) => (
-                        <li key={idx} className="flex items-center text-sm text-zinc-500 group-hover:text-zinc-400 transition-colors">
-                          <div className={cn("mr-2 h-1.5 w-1.5 rounded-full bg-zinc-700 group-hover:bg-current transition-colors", feature.iconColor)} />
+                        <li
+                          key={idx}
+                          className="flex items-center text-sm text-zinc-500 group-hover:text-zinc-400 transition-colors"
+                        >
+                          <div
+                            className={cn(
+                              'mr-2 h-1.5 w-1.5 rounded-full bg-zinc-700 group-hover:bg-current transition-colors',
+                              feature.iconColor,
+                            )}
+                          />
                           {detail}
                         </li>
                       ))}
@@ -374,7 +421,7 @@ export default function Home({ id }: { id: string }) {
         {/* Pricing */}
         <section className="py-32 border-t border-white/5 relative">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-             <div className="mb-20 text-center">
+            <div className="mb-20 text-center">
               <h2 className="text-3xl font-bold tracking-tight text-zinc-100">
                 Simple Pricing
               </h2>
@@ -385,13 +432,13 @@ export default function Home({ id }: { id: string }) {
 
             <div className="grid gap-8 lg:grid-cols-3 max-w-5xl mx-auto">
               {pricingPlans.map((plan, index) => (
-                <Card 
-                  key={index} 
+                <Card
+                  key={index}
                   className={cn(
-                    "relative border bg-zinc-900/30 backdrop-blur-sm transition-all duration-300",
-                    plan.highlighted 
-                      ? "border-violet-500/50 bg-zinc-900/50 shadow-2xl shadow-violet-500/10 scale-105 z-10" 
-                      : "border-white/5 hover:border-white/10 hover:bg-zinc-900/50"
+                    'relative border bg-zinc-900/30 backdrop-blur-sm transition-all duration-300',
+                    plan.highlighted
+                      ? 'border-violet-500/50 bg-zinc-900/50 shadow-2xl shadow-violet-500/10 scale-105 z-10'
+                      : 'border-white/5 hover:border-white/10 hover:bg-zinc-900/50',
                   )}
                 >
                   {plan.highlighted && (
@@ -399,36 +446,55 @@ export default function Home({ id }: { id: string }) {
                       Recommended
                     </div>
                   )}
-                  
+
                   <CardHeader>
-                    <CardTitle className="text-2xl text-zinc-100">{plan.name}</CardTitle>
+                    <CardTitle className="text-2xl text-zinc-100">
+                      {plan.name}
+                    </CardTitle>
                     <div className="mt-4 flex items-baseline text-zinc-100">
                       <span className="text-4xl font-bold">¥{plan.price}</span>
-                      {plan.price !== 'Custom' && <span className="ml-1 text-zinc-500">/月</span>}
+                      {plan.price !== 'Custom' && (
+                        <span className="ml-1 text-zinc-500">/月</span>
+                      )}
                     </div>
-                    <CardDescription className="text-zinc-400 mt-2">{plan.description}</CardDescription>
+                    <CardDescription className="text-zinc-400 mt-2">
+                      {plan.description}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ul className="space-y-4 mb-8">
                       {plan.features.map((feature, idx) => (
                         <li key={idx} className="flex items-center text-sm">
                           {feature.included ? (
-                            <Check className={cn("mr-3 h-4 w-4", plan.highlighted ? "text-violet-400" : "text-zinc-100")} />
+                            <Check
+                              className={cn(
+                                'mr-3 h-4 w-4',
+                                plan.highlighted
+                                  ? 'text-violet-400'
+                                  : 'text-zinc-100',
+                              )}
+                            />
                           ) : (
                             <X className="mr-3 h-4 w-4 text-zinc-700" />
                           )}
-                          <span className={feature.included ? "text-zinc-300" : "text-zinc-700"}>
+                          <span
+                            className={
+                              feature.included
+                                ? 'text-zinc-300'
+                                : 'text-zinc-700'
+                            }
+                          >
                             {feature.text}
                           </span>
                         </li>
                       ))}
                     </ul>
-                    <Button 
+                    <Button
                       className={cn(
-                        "w-full transition-all",
-                        plan.highlighted 
-                          ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white shadow-lg shadow-violet-500/25" 
-                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
+                        'w-full transition-all',
+                        plan.highlighted
+                          ? 'bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white shadow-lg shadow-violet-500/25'
+                          : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100',
                       )}
                       onClick={handleGetStarted}
                     >
@@ -447,19 +513,35 @@ export default function Home({ id }: { id: string }) {
           <div className="container relative z-10 mx-auto px-4 text-center text-zinc-600">
             <div className="flex items-center justify-center space-x-2 mb-8">
               <Sparkles className="h-5 w-5 text-violet-500" />
-              <span className="text-lg font-bold text-zinc-400">FormOnce</span>
+              <span className="text-lg font-bold text-zinc-400">MovFlow</span>
             </div>
             <p className="text-sm mb-8 max-w-md mx-auto">
               Next-generation form builder for the modern web.
-              <br />Open source and free forever.
+              <br />
+              Open source and free forever.
             </p>
             <div className="flex justify-center gap-6">
-              <Link href="#" className="hover:text-violet-400 transition-colors"><GitHubLogoIcon className="h-5 w-5" /></Link>
-              <Link href="#" className="hover:text-violet-400 transition-colors"><Twitter className="h-5 w-5" /></Link>
-              <Link href="#" className="hover:text-violet-400 transition-colors"><Globe className="h-5 w-5" /></Link>
+              <Link
+                href="#"
+                className="hover:text-violet-400 transition-colors"
+              >
+                <GitHubLogoIcon className="h-5 w-5" />
+              </Link>
+              <Link
+                href="#"
+                className="hover:text-violet-400 transition-colors"
+              >
+                <Twitter className="h-5 w-5" />
+              </Link>
+              <Link
+                href="#"
+                className="hover:text-violet-400 transition-colors"
+              >
+                <Globe className="h-5 w-5" />
+              </Link>
             </div>
             <p className="text-xs text-zinc-800 mt-8">
-              © 2024 FormOnce. All rights reserved.
+              © 2024 MovFlow. All rights reserved.
             </p>
           </div>
         </footer>

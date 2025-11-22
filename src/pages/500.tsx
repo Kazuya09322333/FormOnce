@@ -7,7 +7,7 @@ export default function Custom500() {
   return (
     <>
       <Head>
-        <title>500 - サーバーエラー | FormOnce</title>
+        <title>500 - サーバーエラー | MovFlow</title>
       </Head>
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-orange-50 dark:from-gray-900 dark:to-gray-950">
         <div className="text-center px-4 max-w-2xl mx-auto">

@@ -19,7 +19,7 @@ function ComingSoon({ feature }: Tprops) {
         <p>
           <span>Need help? </span>
           <a
-            href={`mailto:ksushant6566@gmail.com?subject=Need help with FormOnce&body=Hi, I need help with the ${feature} feature in formOnce.`}
+            href={`mailto:ksushant6566@gmail.com?subject=Need help with MovFlow&body=Hi, I need help with the ${feature} feature in formOnce.`}
             className="text-primary"
           >
             Contact support

@@ -1,7 +1,7 @@
+import { X } from 'lucide-react'
 import React from 'react'
 import type { TFormSchema } from '~/types/form.types'
 import type { TQuestion } from '~/types/question.types'
-import { X } from 'lucide-react'
 
 import { Button, Icons } from '../ui'
 import VideoAskRenderer from './videoask-renderer'
@@ -14,7 +14,13 @@ type TPreviewProps = {
   embedded?: boolean
 }
 
-function Preview({ formSchema, currentQuestionIdx, questions, onClose, embedded = false }: TPreviewProps) {
+function Preview({
+  formSchema,
+  currentQuestionIdx,
+  questions,
+  onClose,
+  embedded = false,
+}: TPreviewProps) {
   const [resetSignal, setResetSignal] = React.useState(false)
   const [currentIdx, setCurrentIdx] = React.useState(0)
   const [isSubmitted, setIsSubmitted] = React.useState(false)
@@ -41,8 +47,8 @@ function Preview({ formSchema, currentQuestionIdx, questions, onClose, embedded 
   }
 
   const containerClass = embedded
-    ? "absolute inset-0 bg-black"
-    : "fixed inset-0 bg-black z-50"
+    ? 'absolute inset-0 bg-black'
+    : 'fixed inset-0 bg-black z-50'
 
   return (
     <div className={containerClass}>
@@ -71,7 +77,9 @@ function Preview({ formSchema, currentQuestionIdx, questions, onClose, embedded 
               <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-violet-900 via-purple-900 to-black">
                 <div className="text-center space-y-4">
                   <div className="text-6xl">✓</div>
-                  <div className="text-white text-2xl font-bold">送信完了！</div>
+                  <div className="text-white text-2xl font-bold">
+                    送信完了！
+                  </div>
                   <Button
                     onClick={onReset}
                     className="mt-4 bg-violet-600 hover:bg-violet-700"

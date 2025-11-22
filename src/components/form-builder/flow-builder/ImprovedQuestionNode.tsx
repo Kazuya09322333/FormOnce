@@ -22,7 +22,11 @@ import {
 } from 'lucide-react'
 import { memo, useState } from 'react'
 import { Handle, Position, useReactFlow } from 'reactflow'
-import type { TCTAButtonQuestion, TLogic, TQuestion } from '~/types/question.types'
+import type {
+  TCTAButtonQuestion,
+  TLogic,
+  TQuestion,
+} from '~/types/question.types'
 import { EQuestionType } from '~/types/question.types'
 import { api } from '~/utils/api'
 import { checkQuestionProgress } from '~/utils/questionProgress'

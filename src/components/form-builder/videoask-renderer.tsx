@@ -160,13 +160,14 @@ function VideoAskRenderer({
           {questions.map((_, idx) => (
             <div
               key={idx}
-              className={'h-1 flex-1 rounded-full transition-all ' + (
-                idx < qIdx
+              className={
+                'h-1 flex-1 rounded-full transition-all ' +
+                (idx < qIdx
                   ? 'bg-violet-500'
                   : idx === qIdx
                     ? 'bg-violet-400'
-                    : 'bg-gray-300'
-              )}
+                    : 'bg-gray-300')
+              }
             />
           ))}
         </div>
@@ -181,7 +182,14 @@ function VideoAskRenderer({
         <div className="w-1/2 flex items-center justify-center bg-gray-200 p-6">
           {hasVideo ? (
             <div className="relative w-full h-full flex items-center justify-center">
-              <div className="relative" style={{ aspectRatio: '9/16', maxHeight: '100%', maxWidth: '100%' }}>
+              <div
+                className="relative"
+                style={{
+                  aspectRatio: '9/16',
+                  maxHeight: '100%',
+                  maxWidth: '100%',
+                }}
+              >
                 <video
                   ref={videoRef}
                   src={currentQuestion.videoUrl}
@@ -230,7 +238,10 @@ function VideoAskRenderer({
                     name={question.id!}
                     render={({ field }) => (
                       <div
-                        className={'transition-all duration-300 ' + (qIdx === idx ? 'block' : 'hidden')}
+                        className={
+                          'transition-all duration-300 ' +
+                          (qIdx === idx ? 'block' : 'hidden')
+                        }
                       >
                         <VideoAskInput
                           field={field}

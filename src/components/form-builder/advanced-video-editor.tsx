@@ -17,11 +17,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@components/ui'
-import {
-  Plus,
-  Trash2,
-  Upload,
-} from 'lucide-react'
+import { Plus, Trash2, Upload } from 'lucide-react'
 import React, { useState } from 'react'
 import type { TFormSchema } from '~/types/form.types'
 import type { TQuestion } from '~/types/question.types'
@@ -32,8 +28,8 @@ import {
   ESelectSubType,
   ETextSubType,
 } from '~/types/question.types'
-import { Preview } from './preview'
 import { VideoUploadDialog } from './flow-builder/VideoUploadDialog'
+import { Preview } from './preview'
 
 type AdvancedVideoEditorProps = {
   question: TQuestion
@@ -230,9 +226,7 @@ export const AdvancedVideoEditor = ({
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-sm text-gray-900">
-                      ループ再生
-                    </Label>
+                    <Label className="text-sm text-gray-900">ループ再生</Label>
                     <p className="text-xs text-gray-600">
                       ビデオを繰り返し再生します
                     </p>
@@ -443,9 +437,7 @@ export const AdvancedVideoEditor = ({
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm text-gray-900">必須回答</Label>
-                  <p className="text-xs text-gray-600">
-                    回答を必須にします
-                  </p>
+                  <p className="text-xs text-gray-600">回答を必須にします</p>
                 </div>
                 <Switch defaultChecked />
               </div>
