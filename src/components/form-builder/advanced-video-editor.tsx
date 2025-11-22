@@ -18,15 +18,12 @@ import {
   TabsTrigger,
 } from '@components/ui'
 import {
-  Pause,
-  Play,
   Plus,
-  Subtitles,
   Trash2,
   Upload,
-  Video as VideoIcon,
 } from 'lucide-react'
-import React, { useRef, useState } from 'react'
+import React, { useState } from 'react'
+import type { TFormSchema } from '~/types/form.types'
 import type { TQuestion } from '~/types/question.types'
 import {
   ECTAActionType,
@@ -35,6 +32,7 @@ import {
   ESelectSubType,
   ETextSubType,
 } from '~/types/question.types'
+import { Preview } from './preview'
 import { VideoUploadDialog } from './flow-builder/VideoUploadDialog'
 
 type AdvancedVideoEditorProps = {
@@ -50,45 +48,11 @@ export const AdvancedVideoEditor = ({
   onCancel,
   allQuestions = [],
 }: AdvancedVideoEditorProps) => {
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
-  const [duration, setDuration] = useState(0)
-  const [showCaptions, setShowCaptions] = useState(false)
   const [activeTab, setActiveTab] = useState('video')
   const [videoDialogOpen, setVideoDialogOpen] = useState(false)
 
   // Question state
   const [questionData, setQuestionData] = useState<TQuestion>(question)
-
-  const togglePlayPause = () => {
-    if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause()
-      } else {
-        void videoRef.current.play()
-      }
-      setIsPlaying(!isPlaying)
-    }
-  }
-
-  const handleTimeUpdate = () => {
-    if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime)
-    }
-  }
-
-  const handleLoadedMetadata = () => {
-    if (videoRef.current) {
-      setDuration(videoRef.current.duration)
-    }
-  }
-
-  const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60)
-    const seconds = Math.floor(time % 60)
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
 
   const addOption = () => {
     if (questionData.type === EQuestionType.Select) {
@@ -121,86 +85,67 @@ export const AdvancedVideoEditor = ({
     })
   }
 
+  // Generate formSchema from question
+  const generateFormSchema = (question: TQuestion): TFormSchema => {
+    if (!question.id) {
+      return {
+        type: 'object',
+        properties: {},
+        required: [],
+      }
+    }
+
+    const properties: Record<string, unknown> = {}
+
+    if (question.type === EQuestionType.Text) {
+      properties[question.id] = {
+        type: 'string',
+        minLength: question.validation?.required ? 1 : 0,
+      }
+    } else if (question.type === EQuestionType.Select) {
+      if (question.selectSubType === ESelectSubType.Multiple) {
+        properties[question.id] = {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: question.validation?.required ? 1 : 0,
+        }
+      } else {
+        properties[question.id] = {
+          type: 'string',
+          enum: question.options || [],
+          minLength: question.validation?.required ? 1 : 0,
+        }
+      }
+    }
+
+    return {
+      type: 'object',
+      properties,
+      required: question.validation?.required ? [question.id] : [],
+    }
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Left: Video Player */}
-      <div className="w-1/3 bg-black p-6 flex flex-col">
-        <div className="flex-1 flex flex-col">
-          {/* Video Container */}
-          <div className="relative flex-1 bg-gray-900 rounded-lg overflow-hidden mb-4">
-            {questionData.videoUrl ? (
-              <video
-                ref={videoRef}
-                src={questionData.videoUrl}
-                className="w-full h-full object-contain"
-                onTimeUpdate={handleTimeUpdate}
-                onLoadedMetadata={handleLoadedMetadata}
-                playsInline
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-500">
-                <VideoIcon className="w-16 h-16 mb-4" />
-                <p>動画をアップロードしてください</p>
-              </div>
-            )}
-          </div>
+      {/* Left: Live Preview with VideoAskRenderer */}
+      <div className="w-2/3 bg-black relative">
+        <Preview
+          key={JSON.stringify(questionData)}
+          formSchema={generateFormSchema(questionData)}
+          questions={[questionData]}
+          embedded={true}
+        />
 
-          {/* Video Controls */}
-          <div className="bg-gray-800 rounded-lg p-4 space-y-3">
-            {/* Progress Bar */}
-            <div className="flex items-center gap-3 text-white text-sm">
-              <span>{formatTime(currentTime)}</span>
-              <div className="flex-1 h-1 bg-gray-600 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-purple-600 transition-all"
-                  style={{
-                    width: `${duration ? (currentTime / duration) * 100 : 0}%`,
-                  }}
-                />
-              </div>
-              <span>{formatTime(duration)}</span>
-            </div>
-
-            {/* Control Buttons */}
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={togglePlayPause}
-                className="bg-white/10 border-white/20 text-white hover:bg-white/20"
-              >
-                {isPlaying ? (
-                  <Pause className="w-4 h-4" />
-                ) : (
-                  <Play className="w-4 h-4" />
-                )}
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowCaptions(!showCaptions)}
-                className={`bg-white/10 border-white/20 text-white hover:bg-white/20 ${
-                  showCaptions ? 'bg-purple-600' : ''
-                }`}
-              >
-                <Subtitles className="w-4 h-4" />
-              </Button>
-
-              <div className="flex-1" />
-
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-white"
-                onClick={() => setVideoDialogOpen(true)}
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                動画変更
-              </Button>
-            </div>
-          </div>
-        </div>
+        {/* Upload Button Overlay */}
+        <Button
+          size="sm"
+          variant="outline"
+          className="absolute top-20 right-4 z-[70] text-white bg-black/50 hover:bg-black/70 border-white/20"
+          onClick={() => setVideoDialogOpen(true)}
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          動画変更
+        </Button>
       </div>
 
       {/* Video Upload Dialog */}
@@ -212,50 +157,34 @@ export const AdvancedVideoEditor = ({
         existingVideoId={questionData.videoId}
       />
 
-      {/* Center: Options Display */}
-      <div className="w-1/3 p-6 bg-white border-x">
-        <h2 className="text-xl font-bold mb-4 text-foreground">
-          回答オプション
-        </h2>
-
-        {/* Options List - Display Only */}
-        <div className="space-y-2">
-          {questionData.type === EQuestionType.Select &&
-          (questionData.options || []).length > 0 ? (
-            (questionData.options || []).map((option, index) => (
-              <button
-                key={index}
-                className="w-full flex items-center gap-2 p-3 bg-purple-100 hover:bg-purple-200 border border-purple-300 rounded-lg cursor-pointer transition-colors"
-              >
-                <Badge variant="outline" className="bg-white text-foreground">
-                  {String.fromCharCode(65 + index)}
-                </Badge>
-                <span className="flex-1 text-left font-medium text-purple-900">
-                  {option}
-                </span>
-              </button>
-            ))
-          ) : (
-            <div className="text-center text-muted-foreground py-8">
-              右側の「答える」タブで選択肢を追加してください
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Right: Settings Panel */}
-      <div className="w-1/3 p-6 bg-gray-50">
+      <div className="w-1/3 p-6 bg-gray-50 overflow-y-auto">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="video">ビデオ</TabsTrigger>
-            <TabsTrigger value="answer">答える</TabsTrigger>
-            <TabsTrigger value="logic">論理</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 bg-gray-200 p-1">
+            <TabsTrigger
+              value="video"
+              className="data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:font-semibold data-[state=inactive]:text-gray-600"
+            >
+              ビデオ
+            </TabsTrigger>
+            <TabsTrigger
+              value="answer"
+              className="data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:font-semibold data-[state=inactive]:text-gray-600"
+            >
+              答える
+            </TabsTrigger>
+            <TabsTrigger
+              value="logic"
+              className="data-[state=active]:bg-white data-[state=active]:text-purple-700 data-[state=active]:font-semibold data-[state=inactive]:text-gray-600"
+            >
+              論理
+            </TabsTrigger>
           </TabsList>
 
           {/* Video Tab */}
           <TabsContent value="video" className="space-y-4 mt-4">
             <div>
-              <Label className="text-sm font-semibold text-foreground">
+              <Label className="text-sm font-semibold text-gray-900">
                 ステップタイトル
               </Label>
               <Input
@@ -264,12 +193,12 @@ export const AdvancedVideoEditor = ({
                   setQuestionData({ ...questionData, title: e.target.value })
                 }
                 placeholder="例: お名前を教えてください"
-                className="mt-2 bg-background text-foreground"
+                className="mt-2 bg-white text-gray-900"
               />
             </div>
 
             <div>
-              <Label className="text-sm font-semibold text-foreground">
+              <Label className="text-sm font-semibold text-gray-900">
                 説明（オプション）
               </Label>
               <Input
@@ -281,19 +210,19 @@ export const AdvancedVideoEditor = ({
                   })
                 }
                 placeholder="追加の説明文を入力"
-                className="mt-2 bg-background text-foreground"
+                className="mt-2 bg-white text-gray-900"
               />
             </div>
 
             <div className="border-t pt-4">
-              <Label className="text-sm font-semibold mb-3 block text-foreground">
+              <Label className="text-sm font-semibold mb-3 block text-gray-900">
                 ビデオ設定
               </Label>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-sm text-foreground">自動再生</Label>
-                    <p className="text-xs text-muted-foreground">
+                    <Label className="text-sm text-gray-900">自動再生</Label>
+                    <p className="text-xs text-gray-600">
                       ビデオを自動的に再生します
                     </p>
                   </div>
@@ -301,10 +230,10 @@ export const AdvancedVideoEditor = ({
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-sm text-foreground">
+                    <Label className="text-sm text-gray-900">
                       ループ再生
                     </Label>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-gray-600">
                       ビデオを繰り返し再生します
                     </p>
                   </div>
@@ -312,10 +241,10 @@ export const AdvancedVideoEditor = ({
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-sm text-foreground">
+                    <Label className="text-sm text-gray-900">
                       ビデオコントロール表示
                     </Label>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-gray-600">
                       再生/一時停止ボタンを表示
                     </p>
                   </div>
@@ -328,7 +257,7 @@ export const AdvancedVideoEditor = ({
           {/* Answer Tab */}
           <TabsContent value="answer" className="space-y-4 mt-4">
             <div>
-              <Label className="text-sm font-semibold text-foreground">
+              <Label className="text-sm font-semibold text-gray-900">
                 回答タイプ
               </Label>
               <Select
@@ -360,10 +289,10 @@ export const AdvancedVideoEditor = ({
                   }
                 }}
               >
-                <SelectTrigger className="mt-2 bg-background text-foreground">
+                <SelectTrigger className="mt-2 bg-white text-gray-900">
                   <SelectValue placeholder="タイプを選択" />
                 </SelectTrigger>
-                <SelectContent className="bg-background text-foreground">
+                <SelectContent className="bg-white text-gray-900">
                   <SelectItem value="select">
                     ✓ 選択式（Multiple choice）
                   </SelectItem>
@@ -378,17 +307,17 @@ export const AdvancedVideoEditor = ({
             {/* 選択肢管理UI - 選択式の場合のみ表示 */}
             {questionData.type === EQuestionType.Select && (
               <div className="space-y-2 border-t pt-4">
-                <Label className="text-sm font-semibold text-foreground">
+                <Label className="text-sm font-semibold text-gray-900">
                   選択肢
                 </Label>
-                <p className="text-xs text-muted-foreground mb-2">
+                <p className="text-xs text-gray-600 mb-2">
                   回答者が選択できるオプションを追加してください
                 </p>
                 {(questionData.options || []).map((option, index) => (
                   <div key={index} className="flex gap-2 items-center">
                     <Badge
                       variant="outline"
-                      className="min-w-[24px] justify-center text-foreground"
+                      className="min-w-[24px] justify-center text-gray-900"
                     >
                       {String.fromCharCode(65 + index)}
                     </Badge>
@@ -396,13 +325,13 @@ export const AdvancedVideoEditor = ({
                       value={option}
                       onChange={(e) => updateOption(index, e.target.value)}
                       placeholder={`選択肢 ${index + 1}`}
-                      className="flex-1 bg-background text-foreground"
+                      className="flex-1 bg-white text-gray-900"
                     />
                     <Button
                       size="icon"
                       variant="ghost"
                       onClick={() => removeOption(index)}
-                      className="hover:bg-red-50 text-foreground"
+                      className="hover:bg-red-50 text-gray-900"
                     >
                       <Trash2 className="w-4 h-4 text-red-500" />
                     </Button>
@@ -412,7 +341,7 @@ export const AdvancedVideoEditor = ({
                   variant="outline"
                   size="sm"
                   onClick={addOption}
-                  className="w-full mt-2 text-foreground"
+                  className="w-full mt-2 text-gray-900"
                 >
                   <Plus className="w-4 h-4 mr-2" />
                   選択肢を追加
@@ -424,7 +353,7 @@ export const AdvancedVideoEditor = ({
             {questionData.type === EQuestionType.CTAButton && (
               <div className="space-y-4 border-t pt-4">
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-foreground">
+                  <Label className="text-sm font-semibold text-gray-900">
                     ボタンテキスト
                   </Label>
                   <Input
@@ -440,11 +369,11 @@ export const AdvancedVideoEditor = ({
                       } as TQuestion)
                     }
                     placeholder="例: 次へ進む"
-                    className="bg-background text-foreground"
+                    className="bg-white text-gray-900"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-foreground">
+                  <Label className="text-sm font-semibold text-gray-900">
                     アクション
                   </Label>
                   <Select
@@ -464,10 +393,10 @@ export const AdvancedVideoEditor = ({
                       } as TQuestion)
                     }}
                   >
-                    <SelectTrigger className="bg-background text-foreground">
+                    <SelectTrigger className="bg-white text-gray-900">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-background text-foreground">
+                    <SelectContent className="bg-white text-gray-900">
                       <SelectItem value={ECTAActionType.NextStep}>
                         次のステップへ進む
                       </SelectItem>
@@ -483,7 +412,7 @@ export const AdvancedVideoEditor = ({
                 {'actionType' in questionData &&
                   questionData.actionType === ECTAActionType.URLRedirect && (
                     <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-foreground">
+                      <Label className="text-sm font-semibold text-gray-900">
                         リダイレクトURL
                       </Label>
                       <Input
@@ -500,7 +429,7 @@ export const AdvancedVideoEditor = ({
                           } as TQuestion)
                         }
                         placeholder="https://example.com"
-                        className="bg-background text-foreground"
+                        className="bg-white text-gray-900"
                       />
                     </div>
                   )}
@@ -508,13 +437,13 @@ export const AdvancedVideoEditor = ({
             )}
 
             <div className="border-t pt-4 space-y-3">
-              <Label className="text-sm font-semibold block text-foreground">
+              <Label className="text-sm font-semibold block text-gray-900">
                 回答設定
               </Label>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm text-foreground">必須回答</Label>
-                  <p className="text-xs text-muted-foreground">
+                  <Label className="text-sm text-gray-900">必須回答</Label>
+                  <p className="text-xs text-gray-600">
                     回答を必須にします
                   </p>
                 </div>
@@ -523,10 +452,10 @@ export const AdvancedVideoEditor = ({
               {questionData.type === EQuestionType.Select && (
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-sm text-foreground">
+                    <Label className="text-sm text-gray-900">
                       複数選択を許可
                     </Label>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-gray-600">
                       複数の選択肢を選べます
                     </p>
                   </div>
@@ -536,10 +465,10 @@ export const AdvancedVideoEditor = ({
               {questionData.type === EQuestionType.Select && (
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-sm text-foreground">
+                    <Label className="text-sm text-gray-900">
                       ランダム順序
                     </Label>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-gray-600">
                       選択肢をランダム表示
                     </p>
                   </div>
@@ -551,7 +480,7 @@ export const AdvancedVideoEditor = ({
             {questionData.type !== EQuestionType.Select &&
               questionData.type !== EQuestionType.CTAButton && (
                 <div className="border-t pt-4">
-                  <Label className="text-sm font-semibold text-foreground">
+                  <Label className="text-sm font-semibold text-gray-900">
                     プレースホルダー
                   </Label>
                   <Input
@@ -563,7 +492,7 @@ export const AdvancedVideoEditor = ({
                       })
                     }
                     placeholder="例: ここに入力してください"
-                    className="mt-2 bg-background text-foreground"
+                    className="mt-2 bg-white text-gray-900"
                   />
                 </div>
               )}
@@ -572,10 +501,10 @@ export const AdvancedVideoEditor = ({
           {/* Logic Tab */}
           <TabsContent value="logic" className="space-y-4 mt-4">
             <div>
-              <Label className="text-sm font-semibold text-foreground">
+              <Label className="text-sm font-semibold text-gray-900">
                 条件分岐設定
               </Label>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-gray-600 mt-1">
                 各選択肢に対して次のステップを設定できます
               </p>
             </div>
@@ -599,12 +528,12 @@ export const AdvancedVideoEditor = ({
                         >
                           {String.fromCharCode(65 + index)}
                         </Badge>
-                        <span className="text-sm font-medium text-foreground">
+                        <span className="text-sm font-medium text-gray-900">
                           {option}
                         </span>
                       </div>
                       <div>
-                        <Label className="text-xs text-muted-foreground mb-1 block">
+                        <Label className="text-xs text-gray-600 mb-1 block">
                           次のステップ
                         </Label>
                         <Select
@@ -634,10 +563,10 @@ export const AdvancedVideoEditor = ({
                             })
                           }}
                         >
-                          <SelectTrigger className="text-sm bg-background text-foreground">
+                          <SelectTrigger className="text-sm bg-white text-gray-900">
                             <SelectValue placeholder="遷移先を選択" />
                           </SelectTrigger>
-                          <SelectContent className="bg-background text-foreground">
+                          <SelectContent className="bg-white text-gray-900">
                             <SelectItem value="next">→ 次の質問へ</SelectItem>
                             {allQuestions
                               .filter((q) => q.id !== questionData.id)
@@ -655,7 +584,7 @@ export const AdvancedVideoEditor = ({
                 })}
               </div>
             ) : (
-              <div className="text-center py-8 text-muted-foreground text-sm">
+              <div className="text-center py-8 text-gray-600 text-sm">
                 {questionData.type === EQuestionType.Select
                   ? '「答える」タブで選択肢を追加してください'
                   : 'テキスト入力タイプでは条件分岐は使用できません'}
@@ -663,13 +592,13 @@ export const AdvancedVideoEditor = ({
             )}
 
             <div className="space-y-3 pt-4 border-t">
-              <Label className="text-sm font-semibold block text-foreground">
+              <Label className="text-sm font-semibold block text-gray-900">
                 その他の設定
               </Label>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm text-foreground">データ収集</Label>
-                  <p className="text-xs text-muted-foreground">
+                  <Label className="text-sm text-gray-900">データ収集</Label>
+                  <p className="text-xs text-gray-600">
                     回答データを保存します
                   </p>
                 </div>
@@ -677,10 +606,10 @@ export const AdvancedVideoEditor = ({
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm text-foreground">
+                  <Label className="text-sm text-gray-900">
                     スキップを許可
                   </Label>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-gray-600">
                     この質問をスキップ可能にします
                   </p>
                 </div>

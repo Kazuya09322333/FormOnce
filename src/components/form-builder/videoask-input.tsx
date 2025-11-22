@@ -44,12 +44,12 @@ export const VideoAskInput = ({
   switch (question.type) {
     case EQuestionType.Text:
       return (
-        <FormItem className="text-white">
-          <FormLabel className="text-2xl font-bold text-white">
+        <FormItem>
+          <FormLabel className="text-2xl font-bold text-gray-900">
             {question.title}
           </FormLabel>
           {question.description && (
-            <FormDescription className="text-gray-300 text-lg">
+            <FormDescription className="text-gray-600 text-lg">
               {question.description}
             </FormDescription>
           )}
@@ -88,12 +88,12 @@ export const VideoAskInput = ({
 
     case EQuestionType.Select:
       return (
-        <FormItem className="text-white">
-          <FormLabel className="text-2xl font-bold text-white">
+        <FormItem>
+          <FormLabel className="text-2xl font-bold text-gray-900">
             {question.title}
           </FormLabel>
           {question.description && (
-            <FormDescription className="text-gray-300 text-lg">
+            <FormDescription className="text-gray-600 text-lg">
               {question.description}
             </FormDescription>
           )}
@@ -129,12 +129,12 @@ export const VideoAskInput = ({
       }
 
       return (
-        <FormItem className="text-white">
-          <FormLabel className="text-2xl font-bold text-white">
+        <FormItem>
+          <FormLabel className="text-2xl font-bold text-gray-900">
             {question.title}
           </FormLabel>
           {question.description && (
-            <FormDescription className="text-gray-300 text-lg">
+            <FormDescription className="text-gray-600 text-lg">
               {question.description}
             </FormDescription>
           )}
@@ -183,7 +183,7 @@ const RenderTextInput = ({
   placeholder,
 }: TRenderTextInputProps) => {
   const inputClasses =
-    'bg-white/10 border-white/20 text-white placeholder:text-gray-400 text-lg py-6 px-4 focus:bg-white/20 focus:border-violet-400 transition-all'
+    'bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 text-lg py-6 px-4 focus:bg-white focus:border-violet-400 transition-all'
 
   switch (type) {
     case 'short':
@@ -335,17 +335,17 @@ const RenderSelectInput = ({
                     <FormItem key={item}>
                       <label
                         htmlFor={`${item}-${idx}`}
-                        className={`flex items-center gap-4 p-5 rounded-xl border-2 cursor-pointer transition-all transform hover:scale-[1.02] ${
+                        className={`flex items-center gap-4 p-4 rounded-full cursor-pointer transition-all ${
                           isSelected
-                            ? 'bg-violet-600 border-violet-400 shadow-lg shadow-violet-500/50'
-                            : 'bg-white/10 border-white/20 hover:bg-white/20 hover:border-white/40'
+                            ? 'bg-violet-100 border-2 border-violet-600'
+                            : 'bg-gray-200 hover:bg-gray-300 border-2 border-transparent'
                         }`}
                       >
                         <div
-                          className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                          className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm ${
                             isSelected
-                              ? 'bg-white text-violet-600'
-                              : 'bg-white/20 text-white'
+                              ? 'bg-violet-600 text-white'
+                              : 'bg-violet-600 text-white'
                           }`}
                         >
                           {isSelected ? (
@@ -354,7 +354,7 @@ const RenderSelectInput = ({
                             String.fromCharCode(65 + idx)
                           )}
                         </div>
-                        <span className="flex-1 text-white text-lg font-medium">
+                        <span className="flex-1 text-gray-800 text-base font-medium">
                           {item}
                         </span>
                         <FormControl>

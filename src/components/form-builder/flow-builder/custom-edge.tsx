@@ -198,7 +198,15 @@ export default function CustomeEdge({
 
   return (
     <>
-      <BaseEdge id={id} path={edgePath} style={style} />
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        style={{
+          stroke: '#9333ea',
+          strokeWidth: 2,
+          ...style,
+        }}
+      />
       <EdgeLabelRenderer>
         <TooltipProvider>
           <Tooltip delayDuration={10}>

@@ -2,7 +2,6 @@ import { GitHubLogoIcon } from '@radix-ui/react-icons'
 import {
   ArrowRight,
   BarChart,
-  Building,
   Check,
   CheckCircle,
   ChevronLeft,
@@ -40,6 +39,7 @@ import Head from 'next/head'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
+import { useEffect, useState } from 'react'
 import {
   Badge,
   Button,
@@ -48,220 +48,154 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
 } from '~/components/ui'
+import RootLayout from '~/layouts/rootLayout'
 import { supabase } from '~/lib/supabase'
 import { getServerAuthSessionSupabase } from '~/server/auth-supabase'
 import { cn } from '~/utils/cn'
-
-import { useEffect, useState } from 'react'
-import RootLayout from '~/layouts/rootLayout'
 import HeroImg from '../assets/hero.png'
 
-// Feature data with icons and gradients
+// Animated Background with richer elements
+const AnimatedBackground = () => (
+  <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+    {/* Subtle colored spots */}
+    <div className="absolute top-[-20%] left-[-10%] h-[800px] w-[800px] rounded-full bg-violet-600/10 blur-[120px]" />
+    <div className="absolute bottom-[-20%] right-[-10%] h-[600px] w-[600px] rounded-full bg-fuchsia-600/10 blur-[120px]" />
+    
+    {/* Grid Pattern */}
+    <div className="absolute inset-0 bg-[linear-gradient(to_right,#27272a_1px,transparent_1px),linear-gradient(to_bottom,#27272a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_0%,#000_70%,transparent_100%)] opacity-[0.2]" />
+    
+    <style dangerouslySetInnerHTML={{
+      __html: `
+        @keyframes rise {
+          0% { transform: translateY(100vh) scaleY(1); opacity: 0; }
+          50% { opacity: 0.5; }
+          100% { transform: translateY(-20vh) scaleY(1.5); opacity: 0; }
+        }
+        .growth-line {
+          position: absolute;
+          bottom: 0;
+          width: 1px;
+          background: linear-gradient(to top, transparent, rgba(167, 139, 250, 0.5), transparent); /* Violet tint */
+          animation: rise var(--duration) infinite linear;
+          animation-delay: var(--delay);
+          left: var(--left);
+          height: var(--height);
+          opacity: 0;
+        }
+      `
+    }} />
+    {[...Array(8)].map((_, i) => (
+      <div key={i} className="growth-line" style={{
+        '--duration': `${8 + i * 2}s`,
+        '--delay': `${i * 1.2}s`,
+        '--left': `${10 + i * 12}%`,
+        '--height': `${250 + i * 60}px`
+      } as React.CSSProperties} />
+    ))}
+  </div>
+)
+
+// Feature data with richer styling
 const features = [
   {
     icon: Video,
     title: '動画フォーム',
-    description:
-      '質問を動画で伝えることで、より人間味のあるコミュニケーションを実現',
-    gradient: 'from-purple-500 to-pink-500',
-    details: [
-      '最大500MBの動画アップロード',
-      'MP4, MOV, AVI, WebM対応',
-      '自動トランスコーディング',
-    ],
+    description: '質問を動画で伝えることで、より人間味のあるコミュニケーションを実現',
+    bgGradient: 'from-violet-500/10 to-purple-500/10',
+    iconColor: 'text-violet-400',
+    details: ['最大500MBアップロード', 'マルチフォーマット対応', '自動変換'],
   },
   {
     icon: MessageSquare,
-    title: 'インタラクティブな体験',
-    description:
-      '条件分岐やロジックを使って、回答者に最適な質問フローを自動生成',
-    gradient: 'from-blue-500 to-cyan-500',
-    details: ['条件分岐ロジック', 'スキップロジック', '動的な質問表示'],
+    title: 'インタラクティブ体験',
+    description: '条件分岐やロジックを使って、最適な質問フローを自動生成',
+    bgGradient: 'from-blue-500/10 to-cyan-500/10',
+    iconColor: 'text-blue-400',
+    details: ['条件分岐ロジック', 'スキップロジック', '動的表示'],
   },
   {
     icon: BarChart,
     title: 'リアルタイム分析',
-    description: '回答データをリアルタイムで可視化。インサイトを即座に獲得',
-    gradient: 'from-orange-500 to-red-500',
-    details: [
-      'リアルタイムダッシュボード',
-      'カスタムレポート',
-      'CSVエクスポート',
-    ],
+    description: '回答データを即座に可視化し、インサイトを獲得',
+    bgGradient: 'from-emerald-500/10 to-teal-500/10',
+    iconColor: 'text-emerald-400',
+    details: ['ダッシュボード', 'カスタムレポート', 'CSV出力'],
   },
   {
     icon: Shield,
-    title: 'エンタープライズセキュリティ',
-    description: 'Supabaseによる堅牢なセキュリティとプライバシー保護',
-    gradient: 'from-green-500 to-emerald-500',
-    details: ['SSL暗号化', 'GDPR準拠', 'SOC2 Type II認証'],
+    title: 'セキュリティ',
+    description: 'エンタープライズグレードの堅牢なセキュリティ保護',
+    bgGradient: 'from-orange-500/10 to-red-500/10',
+    iconColor: 'text-orange-400',
+    details: ['SSL暗号化', 'GDPR準拠', 'SOC2認証'],
   },
   {
     icon: Globe,
     title: '多言語対応',
-    description: '日本語、英語、中国語など30以上の言語に対応',
-    gradient: 'from-indigo-500 to-purple-500',
-    details: ['自動翻訳機能', 'カスタム言語設定', 'RTL言語サポート'],
+    description: '世界中のユーザーに対応する多言語サポート機能',
+    bgGradient: 'from-pink-500/10 to-rose-500/10',
+    iconColor: 'text-pink-400',
+    details: ['自動翻訳', '30+言語', 'RTL対応'],
   },
   {
     icon: Zap,
     title: 'AI機能',
-    description: 'AIによる回答分析と感情解析で深いインサイトを提供',
-    gradient: 'from-yellow-500 to-orange-500',
+    description: 'AIによる回答分析と感情解析で深い洞察を提供',
+    bgGradient: 'from-yellow-500/10 to-amber-500/10',
+    iconColor: 'text-yellow-400',
     details: ['感情分析', '自動タグ付け', 'トレンド予測'],
   },
 ]
 
-// Testimonial data
-const testimonials = [
-  {
-    name: '田中 太郎',
-    role: '株式会社Example CEO',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=1',
-    content:
-      'FormOnceを導入してから、採用面接の効率が3倍になりました。動画で応募者の人柄が分かるのが素晴らしいです。',
-    rating: 5,
-  },
-  {
-    name: '佐藤 花子',
-    role: 'スタートアップCTO',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=2',
-    content:
-      'カスタマーフィードバックの質が劇的に向上しました。顧客の生の声を動画で聞けるのは本当に価値があります。',
-    rating: 5,
-  },
-  {
-    name: '鈴木 一郎',
-    role: 'マーケティングマネージャー',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=3',
-    content:
-      'UIが直感的で、チーム全員がすぐに使いこなせました。サポートも迅速で助かっています。',
-    rating: 5,
-  },
-  {
-    name: '山田 美咲',
-    role: 'HR責任者',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=4',
-    content:
-      '従来のフォームツールとは一線を画す革新的なプロダクトです。もう他のツールには戻れません。',
-    rating: 5,
-  },
-]
-
-// Pricing plans
 const pricingPlans = [
   {
     name: 'Free',
     price: '0',
-    period: '永久無料',
-    description: '個人や小規模チームに最適',
+    description: '個人や小規模チームに',
     features: [
       { text: '月間100件の回答', included: true },
-      { text: '3つのアクティブフォーム', included: true },
-      { text: '基本的な分析機能', included: true },
-      { text: '7日間のデータ保持', included: true },
-      { text: 'メールサポート', included: true },
-      { text: 'カスタムブランディング', included: false },
-      { text: 'API アクセス', included: false },
-      { text: '優先サポート', included: false },
+      { text: '3つのフォーム', included: true },
+      { text: '基本分析', included: true },
+      { text: 'APIアクセス', included: false },
     ],
-    badge: '人気',
+    badge: 'Popular',
     highlighted: false,
   },
   {
     name: 'Pro',
-    price: '2980',
-    period: '月額',
-    description: '成長中のビジネスに最適',
+    price: '2,980',
+    description: '成長中のビジネスに',
     features: [
       { text: '月間10,000件の回答', included: true },
       { text: '無制限のフォーム', included: true },
-      { text: '高度な分析機能', included: true },
-      { text: '1年間のデータ保持', included: true },
-      { text: 'チャットサポート', included: true },
-      { text: 'カスタムブランディング', included: true },
-      { text: 'API アクセス', included: true },
-      { text: '優先サポート', included: false },
+      { text: '高度な分析', included: true },
+      { text: 'APIアクセス', included: true },
     ],
-    badge: 'おすすめ',
+    badge: 'Recommended',
     highlighted: true,
   },
   {
     name: 'Enterprise',
-    price: 'お問い合わせ',
-    period: 'カスタム',
-    description: '大企業向けのカスタムソリューション',
+    price: 'Custom',
+    description: '大規模な組織向け',
     features: [
       { text: '無制限の回答', included: true },
-      { text: '無制限のフォーム', included: true },
-      { text: 'エンタープライズ分析', included: true },
-      { text: '無制限のデータ保持', included: true },
       { text: '専任サポート', included: true },
-      { text: 'カスタムブランディング', included: true },
-      { text: 'API アクセス', included: true },
-      { text: '優先サポート', included: true },
+      { text: 'カスタム契約', included: true },
+      { text: 'SLA保証', included: true },
     ],
-    badge: 'カスタム',
+    badge: 'Custom',
     highlighted: false,
   },
 ]
 
-// Use cases
-const useCases = [
-  {
-    title: '採用面接',
-    description: '動画による自己紹介で、履歴書だけでは伝わらない人柄を確認',
-    icon: Users,
-    metrics: '採用時間を50%短縮',
-  },
-  {
-    title: 'カスタマーフィードバック',
-    description: '顧客の生の声を動画で収集し、より深い洞察を獲得',
-    icon: MessageSquare,
-    metrics: '満足度スコア30%向上',
-  },
-  {
-    title: '教育・研修',
-    description: 'インタラクティブなクイズや課題提出で学習効果を最大化',
-    icon: FileText,
-    metrics: '学習定着率40%向上',
-  },
-]
-
-// Stats
-const stats = [
-  { label: 'アクティブユーザー', value: '50,000+', icon: Users },
-  { label: '作成されたフォーム', value: '1M+', icon: FileText },
-  { label: '収集された回答', value: '10M+', icon: MessageSquare },
-  { label: '満足度', value: '98%', icon: Star },
-]
-
 export default function Home({ id }: { id: string }) {
   const router = useRouter()
-  const [isSigningOut, setIsSigningOut] = useState(false)
-  const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>(
-    'monthly',
-  )
-  const [currentTestimonial, setCurrentTestimonial] = useState(0)
-
-  // Auto-rotate testimonials
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length)
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [])
 
   const handleSignout = async () => {
-    setIsSigningOut(true)
     await supabase.auth.signOut()
     void router.push('/auth/signin')
-    setIsSigningOut(false)
   }
 
   const handleGetStarted = () => {
@@ -273,96 +207,44 @@ export default function Home({ id }: { id: string }) {
   }
 
   return (
-    <RootLayout title="FormOnce - 動画で伝える、次世代フォームビルダー">
+    <RootLayout title="FormOnce - 次世代フォームビルダー">
       <Head>
-        <title>
-          FormOnce - 動画で伝える、次世代フォームビルダー | 無料で始める
-        </title>
-        <meta
-          name="description"
-          content="動画と音声で質問を伝える革新的なフォームビルダー。採用面接、カスタマーフィードバック、教育など様々なシーンで活用。無料プランあり。"
-        />
-        <meta
-          name="keywords"
-          content="フォームビルダー,動画フォーム,アンケート,採用面接,カスタマーフィードバック,FormOnce"
-        />
-        <meta
-          property="og:title"
-          content="FormOnce - 動画で伝える、次世代フォームビルダー"
-        />
-        <meta
-          property="og:description"
-          content="動画と音声で質問を伝える革新的なフォームビルダー。無料で始められます。"
-        />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://formonce.com" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="canonical" href="https://formonce.com" />
+        <title>FormOnce | 動画で伝える次世代フォーム</title>
       </Head>
 
-      <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+      <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-violet-500/30">
         {/* Navigation */}
-        <nav
-          className="sticky top-0 z-50 border-b bg-white/80 dark:bg-gray-950/80 backdrop-blur-xl"
-          role="navigation"
-          aria-label="メインナビゲーション"
-        >
+        <nav className="sticky top-0 z-50 border-b border-white/5 bg-zinc-950/60 backdrop-blur-xl supports-[backdrop-filter]:bg-zinc-950/60">
           <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
-            <Link
-              href="/"
-              className="flex items-center space-x-2"
-              aria-label="FormOnce ホーム"
-            >
-              <Sparkles
-                className="h-6 w-6 text-purple-600 dark:text-purple-400"
-                aria-hidden="true"
-              />
-              <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
+            <Link href="/" className="flex items-center space-x-2 group">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-600 shadow-lg shadow-violet-500/20">
+                <Sparkles className="h-4 w-4 text-white" />
+              </div>
+              <span className="text-lg font-bold tracking-tight text-zinc-100">
                 FormOnce
               </span>
             </Link>
 
             <div className="flex items-center gap-4">
-              <Link
-                href="https://github.com/FormOnce/FormOnce"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                aria-label="GitHub"
-              >
-                <GitHubLogoIcon className="h-5 w-5" />
-              </Link>
-
               {id ? (
                 <>
-                  <Button
-                    variant="ghost"
-                    onClick={() => router.push('/dashboard/forms')}
-                  >
-                    ダッシュボード
+                  <Button variant="ghost" onClick={() => router.push('/dashboard/forms')} className="text-zinc-400 hover:text-zinc-100">
+                    Dashboard
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleSignout}
-                    disabled={isSigningOut}
-                  >
-                    ログアウト
+                  <Button variant="outline" onClick={handleSignout} className="border-zinc-800 bg-transparent text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100">
+                    Sign out
                   </Button>
                 </>
               ) : (
                 <>
-                  <Button
-                    variant="ghost"
-                    onClick={() => router.push('/auth/signin')}
-                  >
-                    ログイン
+                  <Button variant="ghost" onClick={() => router.push('/auth/signin')} className="text-zinc-400 hover:text-zinc-100 hover:bg-white/5">
+                    Log in
                   </Button>
-                  <Button
-                    onClick={() => router.push('/auth/signup')}
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                  <Button 
+                    onClick={() => router.push('/auth/signup')} 
+                    className="relative overflow-hidden bg-white text-zinc-950 hover:bg-zinc-200 transition-all shadow-[0_0_20px_-5px_rgba(255,255,255,0.3)]"
                   >
-                    無料で始める
+                    Get Started
                   </Button>
                 </>
               )}
@@ -371,136 +253,69 @@ export default function Home({ id }: { id: string }) {
         </nav>
 
         {/* Hero Section */}
-        <section
-          className="relative overflow-hidden"
-          aria-labelledby="hero-heading"
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-100 via-pink-50 to-blue-100 dark:from-purple-950/20 dark:via-pink-950/20 dark:to-blue-950/20" />
-          <div className="container relative mx-auto px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
-            <div className="mx-auto max-w-4xl text-center">
-              <div className="mb-6 inline-flex items-center rounded-full bg-purple-100 dark:bg-purple-900/30 px-4 py-1.5">
-                <Sparkles className="mr-2 h-4 w-4 text-purple-600 dark:text-purple-400" />
-                <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
-                  完全無料・オープンソース
-                </span>
-              </div>
+        <section className="relative overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-32">
+          <AnimatedBackground />
+          
+          <div className="container relative z-10 mx-auto px-4 text-center sm:px-6 lg:px-8">
+            <div className="mb-8 inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 backdrop-blur-sm shadow-lg shadow-violet-500/10">
+              <Sparkles className="mr-2 h-3 w-3 text-violet-400" />
+              <span className="text-xs font-medium text-violet-300">Open Source & Free Forever</span>
+            </div>
 
-              <h1
-                id="hero-heading"
-                className="mb-6 text-5xl font-bold tracking-tight text-gray-900 dark:text-gray-100 sm:text-6xl lg:text-7xl"
-              >
-                <span className="bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-400 bg-clip-text text-transparent">
-                  動画で伝える
-                </span>
-                <br />
+            <h1 className="mb-8 text-5xl font-bold tracking-tight text-zinc-50 sm:text-7xl">
+              動画で伝える、
+              <br className="hidden sm:block" />
+              <span className="bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
                 次世代フォーム体験
-              </h1>
+              </span>
+            </h1>
 
-              <p className="mx-auto mb-10 max-w-2xl text-lg text-gray-600 dark:text-gray-400 sm:text-xl">
-                FormOnceは、動画や音声で質問を伝えることができる次世代のフォームビルダーです。
-                より人間味のあるコミュニケーションで、回答率と満足度を劇的に向上させます。
-              </p>
+            <p className="mx-auto mb-12 max-w-2xl text-lg text-zinc-400 leading-relaxed">
+              従来のテキストフォームを超えて。
+              <span className="text-zinc-200 font-medium">動画と音声</span>による対話的なコミュニケーションで、
+              ユーザーの本当の声を聞きましょう。
+            </p>
 
-              <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-                <Button
-                  size="lg"
-                  onClick={handleGetStarted}
-                  className="group bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-8"
-                >
-                  無料で始める
-                  <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-                </Button>
-
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="group"
-                  onClick={() => {
-                    const demoSection = document.getElementById('demo')
-                    demoSection?.scrollIntoView({ behavior: 'smooth' })
-                  }}
-                >
-                  <PlayCircle className="mr-2 h-4 w-4" />
-                  デモを見る
-                </Button>
-              </div>
-
-              <div className="mt-10 flex flex-wrap items-center justify-center gap-6 text-sm text-gray-600 dark:text-gray-400">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  <span>クレジットカード不要</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  <span>永久無料プラン</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  <span>5分で設定完了</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Stats Section */}
-        <section className="py-16 bg-white dark:bg-gray-900">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-              {stats.map((stat, index) => (
-                <div key={index} className="text-center">
-                  <stat.icon className="mx-auto mb-3 h-8 w-8 text-purple-600 dark:text-purple-400" />
-                  <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                    {stat.value}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {stat.label}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Demo Section */}
-        <section
-          id="demo"
-          className="py-20 bg-gray-50 dark:bg-gray-950"
-          aria-labelledby="demo-heading"
-        >
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-3xl text-center mb-12">
-              <h2
-                id="demo-heading"
-                className="text-3xl font-bold text-gray-900 dark:text-gray-100 sm:text-4xl"
+            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <Button
+                size="lg"
+                onClick={handleGetStarted}
+                className="h-12 px-8 text-base font-medium bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white border-0 shadow-xl shadow-violet-500/20 transition-all hover:scale-105"
               >
-                実際の動作を確認
-              </h2>
-              <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-                FormOnceで作成したフォームがどのように動作するか、実際にご覧ください
-              </p>
+                無料で始める
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 px-8 text-base border-zinc-800 bg-zinc-900/50 text-zinc-300 hover:bg-zinc-900 hover:text-white transition-all backdrop-blur-sm"
+              >
+                <PlayCircle className="mr-2 h-4 w-4" />
+                デモを見る
+              </Button>
             </div>
+          </div>
+        </section>
 
+        {/* Demo Preview with Glassmorphism */}
+        <section className="py-20 relative">
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-zinc-950/50 pointer-events-none" />
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-5xl">
-              <div className="relative rounded-2xl bg-gradient-to-r from-purple-600 to-pink-600 p-1">
-                <div className="rounded-xl bg-white dark:bg-gray-900 p-2">
-                  <div className="relative aspect-video overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800 shadow-2xl">
-                    <Image
-                      src={HeroImg}
-                      alt="FormOnce デモ画面"
-                      className="object-cover"
-                      fill
-                      priority
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                      <button
-                        className="group flex items-center gap-3 rounded-full bg-white/90 px-6 py-3 text-sm font-medium text-gray-900 transition hover:bg-white"
-                        aria-label="デモ動画を再生"
-                      >
-                        <PlayCircle className="h-5 w-5" />
-                        デモを再生
-                      </button>
+              <div className="group relative rounded-xl border border-white/10 bg-white/5 p-2 shadow-2xl shadow-violet-500/10 backdrop-blur-sm transition-transform duration-500 hover:scale-[1.01]">
+                <div className="absolute -inset-1 rounded-xl bg-gradient-to-r from-violet-600/30 to-fuchsia-600/30 opacity-0 blur transition duration-500 group-hover:opacity-100" />
+                <div className="relative aspect-video overflow-hidden rounded-lg bg-zinc-900">
+                  <Image
+                    src={HeroImg}
+                    alt="Demo"
+                    className="object-cover opacity-90 transition-all duration-700 group-hover:scale-105 group-hover:opacity-100"
+                    fill
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    <div className="flex items-center gap-2 rounded-full bg-white/10 px-6 py-3 backdrop-blur-md border border-white/20 text-white shadow-2xl font-medium">
+                       <PlayCircle className="h-5 w-5" />
+                       <span>Watch Demo</span>
                     </div>
                   </div>
                 </div>
@@ -509,57 +324,43 @@ export default function Home({ id }: { id: string }) {
           </div>
         </section>
 
-        {/* Features Section with Grid + Icons */}
-        <section
-          className="py-20 bg-white dark:bg-gray-900"
-          aria-labelledby="features-heading"
-        >
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-3xl text-center mb-16">
-              <h2
-                id="features-heading"
-                className="text-3xl font-bold text-gray-900 dark:text-gray-100 sm:text-4xl"
-              >
-                FormOnceの強力な機能
+        {/* Features with Colorful Gradients */}
+        <section className="py-32 relative overflow-hidden">
+           {/* Background Glows */}
+           <div className="absolute right-0 top-1/4 h-[500px] w-[500px] rounded-full bg-blue-600/5 blur-[100px]" />
+           <div className="absolute left-0 bottom-1/4 h-[500px] w-[500px] rounded-full bg-purple-600/5 blur-[100px]" />
+
+          <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mb-20 text-center">
+              <h2 className="text-3xl font-bold tracking-tight text-zinc-100 sm:text-4xl">
+                Powerful Features
               </h2>
-              <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-                エンタープライズグレードの機能を、すべてのプランでご利用いただけます
+              <p className="mt-4 text-zinc-400">
+                シンプルさと高機能を両立した、モダンなツールセット
               </p>
             </div>
 
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {features.map((feature, index) => (
-                <Card
-                  key={index}
-                  className="group relative overflow-hidden border-gray-200 dark:border-gray-800 transition-all hover:shadow-xl hover:-translate-y-1"
-                >
-                  <div
-                    className={cn(
-                      'absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity',
-                      `bg-gradient-to-br ${feature.gradient}`,
-                    )}
-                  />
-                  <CardHeader className="relative pb-3">
-                    <div
-                      className={cn(
-                        'mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg',
-                        `bg-gradient-to-br ${feature.gradient}`,
-                      )}
-                    >
-                      <feature.icon className="h-6 w-6 text-white" />
+                <Card key={index} className="group relative border border-white/5 bg-zinc-900/40 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-white/10 hover:bg-zinc-900/60 hover:shadow-2xl hover:shadow-black/50">
+                  {/* Hover Gradient */}
+                  <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br pointer-events-none rounded-xl", feature.bgGradient)} />
+                  
+                  <CardHeader>
+                    <div className={cn("mb-4 inline-flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-900 border border-white/10 shadow-lg transition-colors group-hover:border-white/20 group-hover:bg-zinc-800", feature.iconColor)}>
+                      <feature.icon className="h-6 w-6" />
                     </div>
-                    <CardTitle className="text-xl">{feature.title}</CardTitle>
+                    <CardTitle className="text-xl text-zinc-100 group-hover:text-white transition-colors">{feature.title}</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <CardDescription>{feature.description}</CardDescription>
+                  <CardContent className="relative z-10">
+                    <CardDescription className="text-zinc-400 mb-6 group-hover:text-zinc-300 transition-colors">
+                      {feature.description}
+                    </CardDescription>
                     <ul className="space-y-2">
                       {feature.details.map((detail, idx) => (
-                        <li
-                          key={idx}
-                          className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400"
-                        >
-                          <CheckCircle className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
-                          <span>{detail}</span>
+                        <li key={idx} className="flex items-center text-sm text-zinc-500 group-hover:text-zinc-400 transition-colors">
+                          <div className={cn("mr-2 h-1.5 w-1.5 rounded-full bg-zinc-700 group-hover:bg-current transition-colors", feature.iconColor)} />
+                          {detail}
                         </li>
                       ))}
                     </ul>
@@ -567,380 +368,71 @@ export default function Home({ id }: { id: string }) {
                 </Card>
               ))}
             </div>
-
-            {/* Additional Features Grid */}
-            <div className="mt-16 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {[
-                {
-                  icon: Clock,
-                  label: '24時間365日稼働',
-                  desc: '99.99%の稼働率保証',
-                },
-                {
-                  icon: Gauge,
-                  label: '超高速',
-                  desc: '50ms以下のレスポンスタイム',
-                },
-                {
-                  icon: Lock,
-                  label: 'プライバシー重視',
-                  desc: 'GDPR & CCPA準拠',
-                },
-                {
-                  icon: Palette,
-                  label: 'カスタマイズ自在',
-                  desc: '完全なブランディング対応',
-                },
-                {
-                  icon: Code,
-                  label: 'Developer Friendly',
-                  desc: 'REST API & Webhooks',
-                },
-                {
-                  icon: Smartphone,
-                  label: 'モバイル最適化',
-                  desc: 'レスポンシブデザイン',
-                },
-                {
-                  icon: Cloud,
-                  label: 'クラウドネイティブ',
-                  desc: '自動スケーリング対応',
-                },
-                {
-                  icon: HeartHandshake,
-                  label: '24時間サポート',
-                  desc: '日本語対応サポート',
-                },
-              ].map((item, idx) => (
-                <div
-                  key={idx}
-                  className="flex flex-col items-center text-center p-4"
-                >
-                  <item.icon className="h-10 w-10 text-purple-600 dark:text-purple-400 mb-3" />
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                    {item.label}
-                  </h4>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {item.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
           </div>
         </section>
 
-        {/* Testimonials Carousel */}
-        <section
-          className="py-20 bg-gray-50 dark:bg-gray-950"
-          aria-labelledby="testimonials-heading"
-        >
+        {/* Pricing */}
+        <section className="py-32 border-t border-white/5 relative">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-3xl text-center mb-16">
-              <h2
-                id="testimonials-heading"
-                className="text-3xl font-bold text-gray-900 dark:text-gray-100 sm:text-4xl"
-              >
-                お客様の声
+             <div className="mb-20 text-center">
+              <h2 className="text-3xl font-bold tracking-tight text-zinc-100">
+                Simple Pricing
               </h2>
-              <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-                FormOnceを愛用していただいている企業様からのフィードバック
-              </p>
-            </div>
-
-            <div className="mx-auto max-w-4xl">
-              <div className="relative">
-                <div className="overflow-hidden rounded-2xl bg-white dark:bg-gray-800 p-8 shadow-xl">
-                  <div className="flex items-start gap-1 mb-4">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={cn(
-                          'h-5 w-5',
-                          i < (testimonials[currentTestimonial]?.rating ?? 0)
-                            ? 'fill-yellow-400 text-yellow-400'
-                            : 'fill-gray-300 text-gray-300',
-                        )}
-                      />
-                    ))}
-                  </div>
-
-                  <blockquote className="text-lg text-gray-700 dark:text-gray-300 mb-6">
-                    "{testimonials[currentTestimonial]?.content ?? ''}"
-                  </blockquote>
-
-                  <div className="flex items-center gap-4">
-                    <Image
-                      src={testimonials[currentTestimonial]?.avatar ?? ''}
-                      alt={testimonials[currentTestimonial]?.name ?? ''}
-                      width={48}
-                      height={48}
-                      className="rounded-full"
-                    />
-                    <div>
-                      <cite className="not-italic font-semibold text-gray-900 dark:text-gray-100">
-                        {testimonials[currentTestimonial]?.name ?? ''}
-                      </cite>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {testimonials[currentTestimonial]?.role ?? ''}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Navigation buttons */}
-                <button
-                  onClick={() =>
-                    setCurrentTestimonial(
-                      (prev) =>
-                        (prev - 1 + testimonials.length) % testimonials.length,
-                    )
-                  }
-                  className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-12 rounded-full bg-white dark:bg-gray-800 p-2 shadow-lg hover:shadow-xl transition-shadow"
-                  aria-label="前の証言"
-                >
-                  <ChevronLeft className="h-6 w-6 text-gray-600 dark:text-gray-400" />
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentTestimonial(
-                      (prev) => (prev + 1) % testimonials.length,
-                    )
-                  }
-                  className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-12 rounded-full bg-white dark:bg-gray-800 p-2 shadow-lg hover:shadow-xl transition-shadow"
-                  aria-label="次の証言"
-                >
-                  <ChevronRight className="h-6 w-6 text-gray-600 dark:text-gray-400" />
-                </button>
-
-                {/* Dots indicator */}
-                <div className="flex justify-center gap-2 mt-6">
-                  {testimonials.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setCurrentTestimonial(idx)}
-                      className={cn(
-                        'h-2 w-2 rounded-full transition-all',
-                        idx === currentTestimonial
-                          ? 'w-8 bg-purple-600 dark:bg-purple-400'
-                          : 'bg-gray-300 dark:bg-gray-600 hover:bg-gray-400',
-                      )}
-                      aria-label={`証言 ${idx + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Use Cases with Metrics */}
-        <section className="py-20 bg-white dark:bg-gray-900">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-3xl text-center mb-16">
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 sm:text-4xl">
-                実績のある活用例
-              </h2>
-              <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-                FormOnceは、様々なビジネスシーンで成果を上げています
-              </p>
-            </div>
-
-            <div className="grid gap-8 md:grid-cols-3">
-              {useCases.map((useCase, index) => (
-                <div
-                  key={index}
-                  className="group relative rounded-2xl bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-950/30 dark:to-pink-950/30 p-8 transition-all hover:scale-105"
-                >
-                  <useCase.icon className="mb-4 h-12 w-12 text-purple-600 dark:text-purple-400" />
-                  <h3 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
-                    {useCase.title}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
-                    {useCase.description}
-                  </p>
-                  <Badge
-                    variant="secondary"
-                    className="bg-purple-200 dark:bg-purple-900 text-purple-900 dark:text-purple-100"
-                  >
-                    {useCase.metrics}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing Section with Toggle */}
-        <section
-          className="py-20 bg-gray-50 dark:bg-gray-950"
-          id="pricing"
-          aria-labelledby="pricing-heading"
-        >
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-3xl text-center mb-12">
-              <h2
-                id="pricing-heading"
-                className="text-3xl font-bold text-gray-900 dark:text-gray-100 sm:text-4xl"
-              >
-                シンプルで透明な料金プラン
-              </h2>
-              <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
+              <p className="mt-4 text-zinc-400">
                 すべてのプランで基本機能をご利用いただけます
               </p>
-
-              {/* Billing Period Toggle */}
-              <div className="mt-8 flex items-center justify-center gap-4">
-                <span
-                  className={cn(
-                    'text-sm font-medium',
-                    billingPeriod === 'monthly'
-                      ? 'text-gray-900 dark:text-gray-100'
-                      : 'text-gray-500',
-                  )}
-                >
-                  月額払い
-                </span>
-                <button
-                  onClick={() =>
-                    setBillingPeriod((prev) =>
-                      prev === 'monthly' ? 'yearly' : 'monthly',
-                    )
-                  }
-                  className="relative inline-flex h-6 w-11 items-center rounded-full bg-purple-600 transition-colors"
-                  aria-label="料金プラン切り替え"
-                >
-                  <span
-                    className={cn(
-                      'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                      billingPeriod === 'yearly'
-                        ? 'translate-x-6'
-                        : 'translate-x-1',
-                    )}
-                  />
-                </button>
-                <span
-                  className={cn(
-                    'text-sm font-medium',
-                    billingPeriod === 'yearly'
-                      ? 'text-gray-900 dark:text-gray-100'
-                      : 'text-gray-500',
-                  )}
-                >
-                  年額払い
-                  <Badge className="ml-2" variant="secondary">
-                    20%お得
-                  </Badge>
-                </span>
-              </div>
             </div>
 
-            <div className="grid gap-8 lg:grid-cols-3">
+            <div className="grid gap-8 lg:grid-cols-3 max-w-5xl mx-auto">
               {pricingPlans.map((plan, index) => (
-                <Card
-                  key={index}
+                <Card 
+                  key={index} 
                   className={cn(
-                    'relative overflow-hidden transition-all hover:shadow-xl',
-                    plan.highlighted &&
-                      'ring-2 ring-purple-600 dark:ring-purple-400 scale-105',
+                    "relative border bg-zinc-900/30 backdrop-blur-sm transition-all duration-300",
+                    plan.highlighted 
+                      ? "border-violet-500/50 bg-zinc-900/50 shadow-2xl shadow-violet-500/10 scale-105 z-10" 
+                      : "border-white/5 hover:border-white/10 hover:bg-zinc-900/50"
                   )}
                 >
-                  {plan.badge && (
-                    <div className="absolute top-0 right-0">
-                      <Badge
-                        className={cn(
-                          'rounded-none rounded-bl-lg rounded-tr-lg',
-                          plan.highlighted
-                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                            : 'bg-gray-200 dark:bg-gray-700',
-                        )}
-                      >
-                        {plan.badge}
-                      </Badge>
+                  {plan.highlighted && (
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 py-1 text-xs font-medium text-white shadow-lg">
+                      Recommended
                     </div>
                   )}
-
-                  <CardHeader className="pb-8">
-                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                    <CardDescription className="mt-2">
-                      {plan.description}
-                    </CardDescription>
-
-                    <div className="mt-6">
-                      {plan.price === 'お問い合わせ' ? (
-                        <div className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                          {plan.price}
-                        </div>
-                      ) : (
-                        <>
-                          <div className="flex items-baseline gap-1">
-                            <span className="text-5xl font-bold text-gray-900 dark:text-gray-100">
-                              ¥
-                              {billingPeriod === 'yearly' && plan.price !== '0'
-                                ? Math.floor(
-                                    parseInt(plan.price) * 0.8,
-                                  ).toLocaleString()
-                                : parseInt(plan.price).toLocaleString()}
-                            </span>
-                            {plan.price !== '0' && (
-                              <span className="text-gray-600 dark:text-gray-400">
-                                /{billingPeriod === 'yearly' ? '月' : '月'}
-                              </span>
-                            )}
-                          </div>
-                          {billingPeriod === 'yearly' && plan.price !== '0' && (
-                            <p className="mt-2 text-sm text-green-600 dark:text-green-400">
-                              年額 ¥
-                              {(
-                                Math.floor(parseInt(plan.price) * 0.8) * 12
-                              ).toLocaleString()}
-                              （¥
-                              {(
-                                parseInt(plan.price) * 12 -
-                                Math.floor(parseInt(plan.price) * 0.8) * 12
-                              ).toLocaleString()}
-                              お得）
-                            </p>
-                          )}
-                        </>
-                      )}
+                  
+                  <CardHeader>
+                    <CardTitle className="text-2xl text-zinc-100">{plan.name}</CardTitle>
+                    <div className="mt-4 flex items-baseline text-zinc-100">
+                      <span className="text-4xl font-bold">¥{plan.price}</span>
+                      {plan.price !== 'Custom' && <span className="ml-1 text-zinc-500">/月</span>}
                     </div>
+                    <CardDescription className="text-zinc-400 mt-2">{plan.description}</CardDescription>
                   </CardHeader>
-
-                  <CardContent className="space-y-4">
-                    <ul className="space-y-3">
+                  <CardContent>
+                    <ul className="space-y-4 mb-8">
                       {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-start gap-3">
+                        <li key={idx} className="flex items-center text-sm">
                           {feature.included ? (
-                            <Check className="h-5 w-5 text-green-500 flex-shrink-0" />
+                            <Check className={cn("mr-3 h-4 w-4", plan.highlighted ? "text-violet-400" : "text-zinc-100")} />
                           ) : (
-                            <X className="h-5 w-5 text-gray-300 dark:text-gray-600 flex-shrink-0" />
+                            <X className="mr-3 h-4 w-4 text-zinc-700" />
                           )}
-                          <span
-                            className={cn(
-                              'text-sm',
-                              feature.included
-                                ? 'text-gray-700 dark:text-gray-300'
-                                : 'text-gray-400 dark:text-gray-500 line-through',
-                            )}
-                          >
+                          <span className={feature.included ? "text-zinc-300" : "text-zinc-700"}>
                             {feature.text}
                           </span>
                         </li>
                       ))}
                     </ul>
-
-                    <Button
+                    <Button 
                       className={cn(
-                        'w-full',
-                        plan.highlighted
-                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white'
-                          : 'bg-gray-900 dark:bg-gray-100 hover:bg-gray-800 dark:hover:bg-gray-200',
+                        "w-full transition-all",
+                        plan.highlighted 
+                          ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 text-white shadow-lg shadow-violet-500/25" 
+                          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100"
                       )}
                       onClick={handleGetStarted}
                     >
-                      {plan.name === 'Enterprise'
-                        ? 'お問い合わせ'
-                        : '今すぐ始める'}
+                      選択する
                     </Button>
                   </CardContent>
                 </Card>
@@ -949,265 +441,26 @@ export default function Home({ id }: { id: string }) {
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="relative py-24 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-600 to-pink-600" />
-          <div className="absolute inset-0 bg-grid-white/10" />
-          <div className="container relative mx-auto px-4 text-center sm:px-6 lg:px-8">
-            <h2 className="mb-8 text-4xl font-bold text-white sm:text-5xl">
-              今すぐFormOnceを始めよう
-            </h2>
-            <p className="mx-auto mb-10 max-w-2xl text-lg text-purple-100">
-              5分で設定完了。クレジットカード不要で、すべての機能を無料でお試しいただけます。
+        {/* Footer */}
+        <footer className="border-t border-white/5 bg-zinc-950 py-12 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(120,119,198,0.1),transparent_50%)]" />
+          <div className="container relative z-10 mx-auto px-4 text-center text-zinc-600">
+            <div className="flex items-center justify-center space-x-2 mb-8">
+              <Sparkles className="h-5 w-5 text-violet-500" />
+              <span className="text-lg font-bold text-zinc-400">FormOnce</span>
+            </div>
+            <p className="text-sm mb-8 max-w-md mx-auto">
+              Next-generation form builder for the modern web.
+              <br />Open source and free forever.
             </p>
-            <Button
-              size="lg"
-              onClick={handleGetStarted}
-              className="group bg-white text-purple-600 hover:bg-gray-100 px-8"
-            >
-              無料でアカウント作成
-              <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
-            </Button>
-
-            <div className="mt-12 grid grid-cols-1 gap-8 sm:grid-cols-3 max-w-3xl mx-auto text-white">
-              <div className="flex flex-col items-center">
-                <Rocket className="h-10 w-10 mb-3" />
-                <h3 className="font-semibold mb-1">即座に開始</h3>
-                <p className="text-sm text-purple-100">登録後すぐに利用可能</p>
-              </div>
-              <div className="flex flex-col items-center">
-                <Zap className="h-10 w-10 mb-3" />
-                <h3 className="font-semibold mb-1">無制限お試し</h3>
-                <p className="text-sm text-purple-100">全機能を14日間無料</p>
-              </div>
-              <div className="flex flex-col items-center">
-                <Crown className="h-10 w-10 mb-3" />
-                <h3 className="font-semibold mb-1">プレミアムサポート</h3>
-                <p className="text-sm text-purple-100">
-                  日本語での手厚いサポート
-                </p>
-              </div>
+            <div className="flex justify-center gap-6">
+              <Link href="#" className="hover:text-violet-400 transition-colors"><GitHubLogoIcon className="h-5 w-5" /></Link>
+              <Link href="#" className="hover:text-violet-400 transition-colors"><Twitter className="h-5 w-5" /></Link>
+              <Link href="#" className="hover:text-violet-400 transition-colors"><Globe className="h-5 w-5" /></Link>
             </div>
-          </div>
-        </section>
-
-        {/* Multi-column Footer */}
-        <footer
-          className="border-t bg-white dark:bg-gray-950"
-          role="contentinfo"
-        >
-          <div className="container mx-auto px-4 py-16 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
-              {/* Company Info */}
-              <div className="col-span-2">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Sparkles className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                  <span className="text-xl font-bold text-gray-900 dark:text-gray-100">
-                    FormOnce
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  動画で伝える、次世代のフォーム体験。
-                  より人間味のあるコミュニケーションを実現します。
-                </p>
-                <div className="flex gap-4">
-                  <Link
-                    href="https://github.com/FormOnce/FormOnce"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    aria-label="GitHub"
-                  >
-                    <GitHubLogoIcon className="h-5 w-5" />
-                  </Link>
-                  <Link
-                    href="https://twitter.com/formonce"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    aria-label="Twitter"
-                  >
-                    <Twitter className="h-5 w-5" />
-                  </Link>
-                  <Link
-                    href="https://linkedin.com/company/formonce"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    aria-label="LinkedIn"
-                  >
-                    <Linkedin className="h-5 w-5" />
-                  </Link>
-                  <Link
-                    href="https://youtube.com/@formonce"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    aria-label="YouTube"
-                  >
-                    <Youtube className="h-5 w-5" />
-                  </Link>
-                </div>
-              </div>
-
-              {/* Product */}
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  製品
-                </h3>
-                <ul className="space-y-2">
-                  <li>
-                    <Link
-                      href="/features"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      機能
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/pricing"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      料金
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/templates"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      テンプレート
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/integrations"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      連携
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Resources */}
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  リソース
-                </h3>
-                <ul className="space-y-2">
-                  <li>
-                    <Link
-                      href="/docs"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      ドキュメント
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/blog"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      ブログ
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/api"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      API
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/status"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      ステータス
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Company */}
-              <div>
-                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  会社情報
-                </h3>
-                <ul className="space-y-2">
-                  <li>
-                    <Link
-                      href="/about"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      会社概要
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/careers"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      採用情報
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/privacy"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      プライバシーポリシー
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="/terms"
-                      className="text-sm text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-                    >
-                      利用規約
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-            </div>
-
-            {/* Contact Info */}
-            <div className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-800">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
-                  <Mail className="h-4 w-4" />
-                  <a
-                    href="mailto:support@formonce.com"
-                    className="hover:text-gray-900 dark:hover:text-gray-100"
-                  >
-                    support@formonce.com
-                  </a>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
-                  <Phone className="h-4 w-4" />
-                  <a
-                    href="tel:+81-3-1234-5678"
-                    className="hover:text-gray-900 dark:hover:text-gray-100"
-                  >
-                    03-1234-5678
-                  </a>
-                </div>
-                <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
-                  <MapPin className="h-4 w-4" />
-                  <span>東京都渋谷区</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Copyright */}
-            <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-800">
-              <p className="text-center text-sm text-gray-500 dark:text-gray-400">
-                © 2024 FormOnce. All rights reserved.
-              </p>
-            </div>
+            <p className="text-xs text-zinc-800 mt-8">
+              © 2024 FormOnce. All rights reserved.
+            </p>
           </div>
         </footer>
       </div>
@@ -1217,17 +470,8 @@ export default function Home({ id }: { id: string }) {
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const session = await getServerAuthSessionSupabase(ctx)
-
   if (session?.user?.id) {
-    return {
-      props: {
-        id: session.user.id,
-        name: session.user.name,
-      },
-    }
+    return { props: { id: session.user.id, name: session.user.name } }
   }
-
-  return {
-    props: {},
-  }
+  return { props: {} }
 }

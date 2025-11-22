@@ -187,7 +187,7 @@ const ImprovedCustomEdge = ({
         path={edgePath}
         markerEnd={markerEnd}
         style={{
-          stroke: isConditional ? '#9333ea' : '#1f2937',
+          stroke: '#9333ea',
           strokeWidth: 2,
           ...style,
         }}

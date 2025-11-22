@@ -19,6 +19,7 @@ type TProps = {
   currentQuestionIdx?: number
   onReset?: () => void
   resetSignal?: boolean
+  isPreview?: boolean
 }
 
 function VideoAskRenderer({
@@ -27,6 +28,7 @@ function VideoAskRenderer({
   currentQuestionIdx,
   resetSignal,
   onReset,
+  isPreview = false,
   ...props
 }: TProps) {
   const [qIdx, setQuestionIdx] = useState(currentQuestionIdx ?? 0)
@@ -148,99 +150,103 @@ function VideoAskRenderer({
 
   if (!currentQuestion) return null
 
+  const positionClass = isPreview ? 'absolute' : 'fixed'
+
   return (
-    <div className="fixed inset-0 bg-black flex">
+    <div className={positionClass + ' inset-0 bg-gray-100 flex flex-col'}>
       {/* Progress Indicator - Top Bar */}
-      <div className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/60 to-transparent">
+      <div className="flex-shrink-0 p-4 bg-white/90 backdrop-blur-sm border-b z-20">
         <div className="flex items-center gap-2">
           {questions.map((_, idx) => (
             <div
               key={idx}
-              className={`h-1 flex-1 rounded-full transition-all ${
+              className={'h-1 flex-1 rounded-full transition-all ' + (
                 idx < qIdx
                   ? 'bg-violet-500'
                   : idx === qIdx
                     ? 'bg-violet-400'
-                    : 'bg-gray-600'
-              }`}
+                    : 'bg-gray-300'
+              )}
             />
           ))}
         </div>
-        <div className="mt-2 text-white text-sm">
+        <div className="mt-2 text-gray-700 text-sm font-medium">
           {qIdx + 1} / {questions.length}
         </div>
       </div>
 
-      {/* Left Side - Video Section */}
-      {hasVideo && (
-        <div className="relative w-1/2 flex items-center justify-center bg-black">
-          <video
-            ref={videoRef}
-            src={currentQuestion.videoUrl}
-            className="w-full h-full object-contain"
-            onEnded={handleVideoEnded}
-            playsInline
-            preload="auto"
-          >
-            お使いのブラウザは動画タグをサポートしていません。
-          </video>
+      {/* Main Content Area */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        {/* Left Side - Video (Portrait 9:16) */}
+        <div className="w-1/2 flex items-center justify-center bg-gray-200 p-6">
+          {hasVideo ? (
+            <div className="relative w-full h-full flex items-center justify-center">
+              <div className="relative" style={{ aspectRatio: '9/16', maxHeight: '100%', maxWidth: '100%' }}>
+                <video
+                  ref={videoRef}
+                  src={currentQuestion.videoUrl}
+                  className="w-full h-full object-cover rounded-2xl shadow-2xl"
+                  onEnded={handleVideoEnded}
+                  playsInline
+                  preload="auto"
+                  controls
+                >
+                  お使いのブラウザは動画タグをサポートしていません。
+                </video>
 
-          {/* Skip Video Button */}
-          {!videoEnded && (
-            <button
-              onClick={() => setVideoEnded(true)}
-              className="absolute bottom-4 right-4 text-white bg-black/50 hover:bg-black/70 px-4 py-2 rounded-full text-sm transition-colors z-10"
-            >
-              スキップ
-            </button>
+                {/* Skip Video Button */}
+                {!videoEnded && (
+                  <button
+                    onClick={() => setVideoEnded(true)}
+                    className="absolute bottom-4 right-4 text-white bg-black/60 hover:bg-black/80 px-4 py-2 rounded-full text-sm transition-colors"
+                  >
+                    スキップ
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-400">
+              <p>動画がありません</p>
+            </div>
           )}
         </div>
-      )}
 
-      {/* Right Side - Answer Section */}
-      <div
-        className={`${
-          hasVideo ? 'w-1/2' : 'w-full'
-        } flex items-center justify-center bg-gradient-to-br from-violet-900/20 via-purple-900/20 to-black p-8 transition-all duration-500 ${
-          videoEnded || !hasVideo
-            ? 'opacity-100 pointer-events-auto'
-            : 'opacity-50 pointer-events-none'
-        }`}
-      >
-        <div className="w-full max-w-xl">
-          <Form {...form}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                void handleNext()
-              }}
-              className="space-y-6"
-            >
-              {questions.map((question, idx) => (
-                <FormField
-                  key={idx}
-                  control={form.control}
-                  name={question.id!}
-                  render={({ field }) => (
-                    <div
-                      className={`transition-all duration-300 ${
-                        qIdx === idx ? 'block' : 'hidden'
-                      }`}
-                    >
-                      <VideoAskInput
-                        field={field}
-                        question={question}
-                        formControl={form.control}
-                        onNext={handleNext}
-                        isLoading={isNextLoading}
-                        isLastQuestion={qIdx === questions.length - 1}
-                      />
-                    </div>
-                  )}
-                />
-              ))}
-            </form>
-          </Form>
+        {/* Right Side - Answer Options */}
+        <div className="w-1/2 bg-white overflow-y-auto">
+          <div className="max-w-xl mx-auto p-8 pb-16">
+            <Form {...form}>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  void handleNext()
+                }}
+                className="space-y-6"
+              >
+                {questions.map((question, idx) => (
+                  <FormField
+                    key={idx}
+                    control={form.control}
+                    name={question.id!}
+                    render={({ field }) => (
+                      <div
+                        className={'transition-all duration-300 ' + (qIdx === idx ? 'block' : 'hidden')}
+                      >
+                        <VideoAskInput
+                          field={field}
+                          question={question}
+                          formControl={form.control}
+                          onNext={handleNext}
+                          isLoading={isNextLoading}
+                          isLastQuestion={qIdx === questions.length - 1}
+                        />
+                      </div>
+                    )}
+                  />
+                ))}
+              </form>
+            </Form>
+          </div>
         </div>
       </div>
     </div>

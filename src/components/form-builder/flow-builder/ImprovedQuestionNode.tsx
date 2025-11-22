@@ -10,6 +10,7 @@ import {
 import {
   CheckCircle2,
   Copy,
+  ExternalLink,
   MessageSquare,
   MoreVertical,
   Play,
@@ -21,7 +22,7 @@ import {
 } from 'lucide-react'
 import { memo, useState } from 'react'
 import { Handle, Position, useReactFlow } from 'reactflow'
-import type { TLogic, TQuestion } from '~/types/question.types'
+import type { TCTAButtonQuestion, TLogic, TQuestion } from '~/types/question.types'
 import { EQuestionType } from '~/types/question.types'
 import { api } from '~/utils/api'
 import { checkQuestionProgress } from '~/utils/questionProgress'
@@ -300,6 +301,18 @@ const ImprovedQuestionNode = ({ data }: QuestionNodeProps) => {
                     </div>
                   </div>
                 ))
+            ) : question.type === EQuestionType.CTAButton ? (
+              <div className="flex items-center justify-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border-2 border-blue-200">
+                <ExternalLink size={24} className="text-blue-600" />
+                <div className="flex flex-col">
+                  <div className="text-sm font-semibold text-blue-900">
+                    WEBサイト遷移
+                  </div>
+                  <div className="text-xs text-blue-600">
+                    {(question as TCTAButtonQuestion).buttonText || 'ボタン'}
+                  </div>
+                </div>
+              </div>
             ) : (
               <div className="text-sm text-gray-400 text-center">
                 選択肢なし
